@@ -366,10 +366,21 @@
     </div>
 
     <!-- Кнопки при обогащении (соц. сети / панели) -->
-    <div id="enrich-buttons" style="display:none; margin-top: 0;">
+    <div id="enrich-running-buttons" style="display:none; margin-top: 0;">
       <button id="stop_enrich_btn" class="btn-stop" style="width:100%;">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
-        Остановить и сохранить
+        Стоп
+      </button>
+    </div>
+
+    <div id="enrich-paused-buttons" style="display:none; margin-top: 0; gap: 8px;">
+      <button id="continue_enrich_btn" class="btn-collect" style="flex: 1; padding: 11px; font-size: 13px;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        Продолжить
+      </button>
+      <button id="cancel_enrich_btn" class="btn-stop" style="flex: 1; padding: 11px; font-size: 13px;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        Отменить
       </button>
     </div>
 

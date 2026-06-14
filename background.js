@@ -203,8 +203,8 @@ function triggerDownload(data, format, filename, fields) {
             if (f.tags        && s.tags        !== undefined) out.tags        = s.tags;
             if (f.url         && s.url         !== undefined) out.url         = s.url;
             if (f.description && s.description !== undefined) out.description = s.description;
-            if (f.social      && s.social      !== undefined) out.social      = s.social;
-            if (f.panels      && s.panels      !== undefined) out.panels      = s.panels;
+            if (f.social      && s.social      && s.social.length > 0) out.social      = s.social;
+            if (f.panels      && s.panels      && s.panels.length > 0) out.panels      = s.panels;
             return out;
         });
         content = JSON.stringify(filtered, null, 2);
@@ -454,13 +454,20 @@ async function enrichData(data, fields) {
     _shouldStopEnrich = false;
     const totalStreams = data.length;
 
-    // Функция прерывания: сохраняем что есть и возвращаем null
-    function stopAndRestore() {
+    // Функция прерывания: сохраняем что есть и переводим в состояние паузы
+    function stopAndRestore(step, done, total) {
         _isEnriching = false;
         chrome.storage.local.set({ scrapedData: data });
-        const doneState = { phase: 'done', collected: totalStreams, target: 0, error: null };
-        chrome.storage.local.set({ scrapingState: doneState });
-        setState(doneState);
+        const pausedState = {
+            phase: 'enrich_paused',
+            enrichStep: step,
+            enrichDone: done,
+            enrichTotal: total,
+            collected: totalStreams,
+            enrichFields: fields
+        };
+        chrome.storage.local.set({ scrapingState: pausedState });
+        setState(pausedState);
     }
 
     // Соц. сети
@@ -471,7 +478,10 @@ async function enrichData(data, fields) {
         const CHUNK = 30;
 
         for (let i = 0; i < missing.length; i += CHUNK) {
-            if (_shouldStopEnrich) { stopAndRestore(); return null; }
+            if (_shouldStopEnrich) {
+                stopAndRestore('social', done, total);
+                return null;
+            }
             const chunk = missing.slice(i, i + CHUNK);
             const socialMap = await fetchSocialMediasBatch(chunk.map(s => s._login));
             chunk.forEach(s => { s.social = socialMap[s._login] || []; });
@@ -481,7 +491,11 @@ async function enrichData(data, fields) {
         }
     }
 
-    if (_shouldStopEnrich) { stopAndRestore(); return null; }
+    if (_shouldStopEnrich) {
+        const panelsMissing = fields.panels ? data.filter(s => s.panels === undefined && s._userId).length : 0;
+        stopAndRestore(fields.panels ? 'panels' : 'social', 0, panelsMissing);
+        return null;
+    }
 
     // Панели
     if (fields.panels) {
@@ -491,7 +505,10 @@ async function enrichData(data, fields) {
         const BATCH = 20;
 
         for (let bi = 0; bi < missing.length; bi += BATCH) {
-            if (_shouldStopEnrich) { stopAndRestore(); return null; }
+            if (_shouldStopEnrich) {
+                stopAndRestore('panels', done, total);
+                return null;
+            }
             const chunk = missing.slice(bi, bi + BATCH);
             const panelsMap = await fetchPanelsForUsers(chunk.map(s => s._userId));
             chunk.forEach(s => { s.panels = panelsMap[s._userId] || []; });
@@ -551,12 +568,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 );
 
                 if (needEnrich) {
+                    // Начинаем обогащение, но сам файл не скачиваем автоматически
                     const enriched = await enrichData(data, fields);
-                    if (enriched === null) return; // остановлено пользователем
-                    data = enriched;
+                    if (enriched !== null) {
+                        // Обогащение завершилось до конца: сохраняем и показываем кнопку "Скачать файл"
+                        const doneState = { phase: 'done', collected: data.length, target: 0, error: null };
+                        chrome.storage.local.set({ scrapingState: doneState, scrapedData: enriched });
+                        setState(doneState);
+                    }
+                } else {
+                    // Обогащение не требуется (уже пройдено или отменено) — скачиваем файл сразу
+                    downloadData(data, format, res.scrapeMeta.tabId, fields);
                 }
-
-                downloadData(data, format, res.scrapeMeta.tabId, fields);
             }
         });
         sendResponse({ ok: true });
@@ -565,6 +588,50 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     if (message.action === 'stop_enrich') {
         _shouldStopEnrich = true;
+        sendResponse({ ok: true });
+        return true;
+    }
+
+    if (message.action === 'resume_enrich') {
+        chrome.storage.local.get(['scrapedData', 'scrapingState', 'scrapeMeta'], async (res) => {
+            if (res.scrapedData && res.scrapingState) {
+                const fields = res.scrapingState.enrichFields || { social: true, panels: true };
+                let data = res.scrapedData;
+
+                const enriched = await enrichData(data, fields);
+                if (enriched !== null) {
+                    const doneState = { phase: 'done', collected: data.length, target: 0, error: null };
+                    chrome.storage.local.set({ scrapingState: doneState, scrapedData: enriched });
+                    setState(doneState);
+                }
+            }
+        });
+        sendResponse({ ok: true });
+        return true;
+    }
+
+    if (message.action === 'cancel_enrich') {
+        chrome.storage.local.get(['scrapedData', 'scrapingState'], (res) => {
+            if (res.scrapedData) {
+                const data = res.scrapedData;
+                const state = res.scrapingState || {};
+                const fields = state.enrichFields || { social: true, panels: true };
+
+                // Заполняем необработанные поля null, чтобы они не обогащались и не попадали в файл
+                data.forEach(s => {
+                    if (fields.social && s.social === undefined) {
+                        s.social = null;
+                    }
+                    if (fields.panels && s.panels === undefined) {
+                        s.panels = null;
+                    }
+                });
+
+                const doneState = { phase: 'done', collected: data.length, target: 0, error: null };
+                chrome.storage.local.set({ scrapingState: doneState, scrapedData: data });
+                setState(doneState);
+            }
+        });
         sendResponse({ ok: true });
         return true;
     }

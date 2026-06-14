@@ -32,11 +32,36 @@
 
     .header {
       background: linear-gradient(135deg, #1a1a20, var(--primary));
-      padding: 16px 20px;
+      padding: 12px 20px;
       display: flex;
       align-items: center;
+      justify-content: space-between;
       gap: 10px;
       border-bottom: 1px solid rgba(145,70,255,0.3);
+    }
+
+    .header-btn {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 6px;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+      outline: none;
+    }
+    .header-btn:hover {
+      background: rgba(255, 255, 255, 0.18);
+      color: var(--text);
+      border-color: rgba(255, 255, 255, 0.3);
+    }
+    .header-btn.active {
+      background: rgba(145, 70, 255, 0.2);
+      color: var(--primary-hover);
+      border-color: rgba(145, 70, 255, 0.4);
     }
 
     .header-icon {
@@ -275,11 +300,17 @@
 </head>
 <body>
   <div class="header">
-    <div class="header-icon">📡</div>
-    <h2>Twitch Scraper</h2>
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <div class="header-icon">📡</div>
+      <h2>Twitch Scraper</h2>
+    </div>
+    <button id="debug_toggle_btn" class="header-btn" title="Панель отладки">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-bug-icon lucide-bug"><path d="M12 20v-9"/><path d="M14 7a4 4 0 0 1 4 4v3a6 6 0 0 1-12 0v-3a4 4 0 0 1 4-4z"/><path d="M14.12 3.88 16 2"/><path d="M21 21a4 4 0 0 0-3.81-4"/><path d="M21 5a4 4 0 0 1-3.55 3.97"/><path d="M22 13h-4"/><path d="M3 21a4 4 0 0 1 3.81-4"/><path d="M3 5a4 4 0 0 0 3.55 3.97"/><path d="M6 13H2"/><path d="m8 2 1.88 1.88"/><path d="M9 7.13V6a3 3 0 1 1 6 0v1.13"/></svg>
+    </button>
   </div>
   
-  <div class="container">
+  <!-- MAIN VIEW -->
+  <div class="container" id="main-view">
 
     <!-- ПРОГРЕСС (скрыт если неактивен) -->
     <div id="progress-section">
@@ -347,14 +378,8 @@
         </label>
       </div>
       
-      <button id="default_settings_btn" class="btn-secondary" style="margin-top: 4px; padding: 6px; font-size: 11px; opacity: 0.8;">
+      <button id="default_settings_btn" class="btn-secondary" style="margin-top: 4px; padding: 6px; font-size: 11px; opacity: 0.8; width: 100%;">
         Сбросить настройки интерфейса
-      </button>
-      <button id="download_logs_btn" class="btn-secondary" style="margin-top: 4px; padding: 6px; font-size: 11px; opacity: 0.8; color: var(--success); border-color: rgba(0,230,203,0.35);">
-        Скачать дебаг-логи
-      </button>
-      <button id="full_reset_btn" class="btn-secondary" style="margin-top: 4px; padding: 6px; font-size: 11px; opacity: 0.8; color: var(--error); border-color: rgba(255,79,77,0.35);">
-        Полный сброс расширения (Экстренный)
       </button>
     </div>
 
@@ -409,6 +434,36 @@
       <span id="status-pill" class="status-pill" style="display:none;"></span>
     </div>
 
+  </div>
+
+  <!-- DEBUG VIEW -->
+  <div class="container" id="debug-view" style="display: none;">
+    <div class="section">
+      <div class="section-title">Панель отладки</div>
+      
+      <label class="checkbox-label" style="margin-bottom: 12px; display: flex; align-items: center; width: 100%;">
+        <input type="checkbox" id="cb_disable_logging"> Отключить ведение логов
+      </label>
+      
+      <button id="download_logs_btn" class="btn-collect" style="background: var(--primary); color: white; display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 11px; font-size: 13px; border: none; border-radius: 9px; cursor: pointer; transition: all 0.2s;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Скачать дебаг-логи
+      </button>
+      
+      <button id="clear_logs_btn" class="btn-secondary" style="margin-top: 8px; width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 8px; font-size: 12px;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+        Очистить логи
+      </button>
+
+      <button id="full_reset_btn" class="btn-secondary" style="margin-top: 24px; width: 100%; color: var(--error); border-color: rgba(255,79,77,0.35); display: flex; align-items: center; justify-content: center; gap: 6px; padding: 8px; font-size: 12px;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+        Полный сброс расширения (Экстренный)
+      </button>
+    </div>
+    
+    <button id="debug_back_btn" class="btn-secondary" style="width: 100%; margin-top: 10px; padding: 10px; font-size: 13px;">
+      Назад
+    </button>
   </div>
 
   <script src="popup.js"></script>

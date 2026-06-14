@@ -16,7 +16,21 @@ chrome.storage.local.get('debugLogs', (res) => {
     if (res.debugLogs) _logsBuffer = res.debugLogs;
 });
 
+let _isLoggingDisabled = false;
+chrome.storage.local.get('isLoggingDisabled', (res) => {
+    if (res.isLoggingDisabled !== undefined) {
+        _isLoggingDisabled = res.isLoggingDisabled;
+    }
+});
+
+chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName === 'local' && changes.isLoggingDisabled) {
+        _isLoggingDisabled = changes.isLoggingDisabled.newValue;
+    }
+});
+
 function addLog(msg) {
+    if (_isLoggingDisabled) return;
     const timestamp = new Date().toISOString().replace('T', ' ').substring(0, 19);
     const logLine = `[${timestamp}] ${msg}`;
     console.log(logLine);
@@ -794,6 +808,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 setState(idleState);
                 sendResponse({ ok: true });
             });
+        });
+        return true;
+    }
+
+    if (message.action === 'clear_logs') {
+        _logsBuffer = [];
+        chrome.storage.local.set({ debugLogs: [] }, () => {
+            sendResponse({ ok: true });
         });
         return true;
     }

@@ -3,77 +3,83 @@
 // =============================================
 
 const TWITCH_LANGUAGES = [
-    { code: "all",   name: "🌐 Все языки" },
-    { code: "RU",    name: "Русский (RU)" },
-    { code: "EN",    name: "English (EN)" },
-    { code: "ES",    name: "Español (ES)" },
-    { code: "DE",    name: "Deutsch (DE)" },
-    { code: "FR",    name: "Français (FR)" },
-    { code: "PT",    name: "Português (PT)" },
-    { code: "ZH",    name: "中文 (ZH)" },
-    { code: "JA",    name: "日本語 (JA)" },
-    { code: "KO",    name: "한국어 (KO)" },
-    { code: "IT",    name: "Italiano (IT)" },
-    { code: "PL",    name: "Polski (PL)" },
-    { code: "TR",    name: "Türkçe (TR)" },
-    { code: "NL",    name: "Nederlands (NL)" },
-    { code: "SV",    name: "Svenska (SV)" },
-    { code: "DA",    name: "Dansk (DA)" },
-    { code: "FI",    name: "Suomi (FI)" },
-    { code: "NO",    name: "Norsk (NO)" },
-    { code: "RO",    name: "Română (RO)" },
-    { code: "HU",    name: "Magyar (HU)" },
-    { code: "CS",    name: "Čeština (CS)" },
-    { code: "EL",    name: "Ελληνικά (EL)" },
-    { code: "BG",    name: "Български (BG)" },
-    { code: "UK",    name: "Українська (UK)" },
-    { code: "AR",    name: "العربية (AR)" },
-    { code: "HI",    name: "हिन्दी (HI)" },
-    { code: "TH",    name: "ภาษาไทย (TH)" },
-    { code: "VI",    name: "Tiếng Việt (VI)" },
-    { code: "ID",    name: "Bahasa Indonesia (ID)" },
-    { code: "MS",    name: "Bahasa Melayu (MS)" },
-    { code: "CA",    name: "Català (CA)" },
-    { code: "SK",    name: "Slovenčina (SK)" },
-    { code: "TL",    name: "Tagalog (TL)" },
-    { code: "ASL",   name: "American Sign Language (ASL)" },
+    { code: "all", name: "🌐 Все языки" },
+    { code: "RU", name: "Русский (RU)" },
+    { code: "EN", name: "English (EN)" },
+    { code: "ES", name: "Español (ES)" },
+    { code: "DE", name: "Deutsch (DE)" },
+    { code: "FR", name: "Français (FR)" },
+    { code: "PT", name: "Português (PT)" },
+    { code: "ZH", name: "中文 (ZH)" },
+    { code: "JA", name: "日本語 (JA)" },
+    { code: "KO", name: "한국어 (KO)" },
+    { code: "IT", name: "Italiano (IT)" },
+    { code: "PL", name: "Polski (PL)" },
+    { code: "TR", name: "Türkçe (TR)" },
+    { code: "NL", name: "Nederlands (NL)" },
+    { code: "SV", name: "Svenska (SV)" },
+    { code: "DA", name: "Dansk (DA)" },
+    { code: "FI", name: "Suomi (FI)" },
+    { code: "NO", name: "Norsk (NO)" },
+    { code: "RO", name: "Română (RO)" },
+    { code: "HU", name: "Magyar (HU)" },
+    { code: "CS", name: "Čeština (CS)" },
+    { code: "EL", name: "Ελληνικά (EL)" },
+    { code: "BG", name: "Български (BG)" },
+    { code: "UK", name: "Українська (UK)" },
+    { code: "AR", name: "العربية (AR)" },
+    { code: "HI", name: "हिन्दी (HI)" },
+    { code: "TH", name: "ภาษาไทย (TH)" },
+    { code: "VI", name: "Tiếng Việt (VI)" },
+    { code: "ID", name: "Bahasa Indonesia (ID)" },
+    { code: "MS", name: "Bahasa Melayu (MS)" },
+    { code: "CA", name: "Català (CA)" },
+    { code: "SK", name: "Slovenčina (SK)" },
+    { code: "TL", name: "Tagalog (TL)" },
+    { code: "ASL", name: "American Sign Language (ASL)" },
     { code: "OTHER", name: "Другой (OTHER)" }
 ];
 
 // ─── Элементы UI ───────────────────────────────────────────────────────────
-const collectBtn      = document.getElementById('collect_btn');
-const stopBtn         = document.getElementById('stop_btn');
-const finishBtn       = document.getElementById('finish_btn');
-const actionButtons   = document.getElementById('action-buttons');
+const collectBtn = document.getElementById('collect_btn');
+const stopBtn = document.getElementById('stop_btn');
+const finishBtn = document.getElementById('finish_btn');
+const actionButtons = document.getElementById('action-buttons');
 const progressSection = document.getElementById('progress-section');
-const progressLabel   = document.getElementById('progress-label');
-const progressCount   = document.getElementById('progress-count');
-const progressBar     = document.getElementById('progress-bar');
-const progressSub     = document.getElementById('progress-sub');
-const statusPill      = document.getElementById('status-pill');
-const langList        = document.getElementById('lang_list');
-const doneButtons     = document.getElementById('done-buttons');
-const downloadBtn     = document.getElementById('download_btn');
-const resetBtn        = document.getElementById('reset_btn');
+const progressLabel = document.getElementById('progress-label');
+const progressCount = document.getElementById('progress-count');
+const progressBar = document.getElementById('progress-bar');
+const progressSub = document.getElementById('progress-sub');
+const statusPill = document.getElementById('status-pill');
+const langList = document.getElementById('lang_list');
+const doneButtons = document.getElementById('done-buttons');
+const downloadBtn = document.getElementById('download_btn');
+const resetBtn = document.getElementById('reset_btn');
 const enrichRunningButtons = document.getElementById('enrich-running-buttons');
-const stopEnrichBtn   = document.getElementById('stop_enrich_btn');
-const enrichPausedButtons  = document.getElementById('enrich-paused-buttons');
-const continueEnrichBtn    = document.getElementById('continue_enrich_btn');
-const cancelEnrichBtn      = document.getElementById('cancel_enrich_btn');
+const stopEnrichBtn = document.getElementById('stop_enrich_btn');
+const enrichPausedButtons = document.getElementById('enrich-paused-buttons');
+const continueEnrichBtn = document.getElementById('continue_enrich_btn');
+const cancelEnrichBtn = document.getElementById('cancel_enrich_btn');
 const defaultSettingsBtn = document.getElementById('default_settings_btn');
 const fullResetBtn = document.getElementById('full_reset_btn');
 const downloadLogsBtn = document.getElementById('download_logs_btn');
+const debugToggleBtn = document.getElementById('debug_toggle_btn');
+const mainView = document.getElementById('main-view');
+const debugView = document.getElementById('debug-view');
+const cbDisableLogging = document.getElementById('cb_disable_logging');
+const clearLogsBtn = document.getElementById('clear_logs_btn');
+const debugBackBtn = document.getElementById('debug_back_btn');
 
 // Заполняем список языков удобными чекбоксами
 TWITCH_LANGUAGES.forEach(lang => {
     const label = document.createElement('label');
     label.className = 'checkbox-label';
-    
+
     const cb = document.createElement('input');
     cb.type = 'checkbox';
     cb.value = lang.code;
     cb.name = 'lang_checkbox';
-    
+
     cb.addEventListener('change', (e) => {
         if (e.target.value === 'all' && e.target.checked) {
             document.querySelectorAll('input[name="lang_checkbox"]').forEach(c => {
@@ -94,22 +100,22 @@ TWITCH_LANGUAGES.forEach(lang => {
 // ─── Сохранение и загрузка настроек UI ────────────────────────────────────
 function saveUISettings() {
     const settings = {
-        cb_channel:   document.getElementById('cb_channel').checked,
-        cb_category:  document.getElementById('cb_category').checked,
-        cb_tags:      document.getElementById('cb_tags').checked,
-        cb_viewers:   document.getElementById('cb_viewers').checked,
+        cb_channel: document.getElementById('cb_channel').checked,
+        cb_category: document.getElementById('cb_category').checked,
+        cb_tags: document.getElementById('cb_tags').checked,
+        cb_viewers: document.getElementById('cb_viewers').checked,
         cb_followers: document.getElementById('cb_followers').checked,
-        cb_title:     document.getElementById('cb_title').checked,
-        cb_language:  document.getElementById('cb_language').checked,
-        cb_url:       document.getElementById('cb_url').checked,
-        cb_desc:      document.getElementById('cb_desc').checked,
-        cb_social:    document.getElementById('cb_social').checked,
-        cb_panels:    document.getElementById('cb_panels').checked,
-        cb_subonly:   document.getElementById('cb_subonly').checked,
-        max_streams:  document.getElementById('max_streams').value,
-        format:       document.querySelector('input[name="format"]:checked').value,
-        sort_dir:     document.querySelector('input[name="sort_dir"]:checked').value,
-        lang_filter:  Array.from(document.querySelectorAll('input[name="lang_checkbox"]:checked')).map(cb => cb.value)
+        cb_title: document.getElementById('cb_title').checked,
+        cb_language: document.getElementById('cb_language').checked,
+        cb_url: document.getElementById('cb_url').checked,
+        cb_desc: document.getElementById('cb_desc').checked,
+        cb_social: document.getElementById('cb_social').checked,
+        cb_panels: document.getElementById('cb_panels').checked,
+        cb_subonly: document.getElementById('cb_subonly').checked,
+        max_streams: document.getElementById('max_streams').value,
+        format: document.querySelector('input[name="format"]:checked').value,
+        sort_dir: document.querySelector('input[name="sort_dir"]:checked').value,
+        lang_filter: Array.from(document.querySelectorAll('input[name="lang_checkbox"]:checked')).map(cb => cb.value)
     };
     chrome.storage.local.set({ uiSettings: settings });
 }
@@ -131,7 +137,7 @@ function loadUISettings() {
             if (s.cb_panels !== undefined) document.getElementById('cb_panels').checked = s.cb_panels;
             if (s.cb_subonly !== undefined) document.getElementById('cb_subonly').checked = s.cb_subonly;
             if (s.max_streams !== undefined) document.getElementById('max_streams').value = s.max_streams;
-            
+
             if (s.format !== undefined) {
                 const rb = document.querySelector(`input[name="format"][value="${s.format}"]`);
                 if (rb) rb.checked = true;
@@ -151,6 +157,13 @@ function loadUISettings() {
         } else {
             const allCb = document.querySelector('input[name="lang_checkbox"][value="all"]');
             if (allCb) allCb.checked = true;
+        }
+    });
+    chrome.storage.local.get('isLoggingDisabled', (res) => {
+        if (res.isLoggingDisabled !== undefined) {
+            cbDisableLogging.checked = res.isLoggingDisabled;
+        } else {
+            cbDisableLogging.checked = false;
         }
     });
 }
@@ -213,7 +226,7 @@ function applyState(state) {
         stopEnrichBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"/></svg> Стоп`;
 
         const stepLabel = state.enrichStep === 'social' ? 'Соц. сети' : 'Панели';
-        const done  = state.enrichDone  || 0;
+        const done = state.enrichDone || 0;
         const total = state.enrichTotal || 0;
 
         progressLabel.textContent = `Сбор: ${stepLabel}...`;
@@ -244,7 +257,7 @@ function applyState(state) {
         cancelEnrichBtn.disabled = false;
 
         const stepLabel = state.enrichStep === 'social' ? 'Соц. сети' : 'Панели';
-        const done  = state.enrichDone  || 0;
+        const done = state.enrichDone || 0;
         const total = state.enrichTotal || 0;
 
         progressLabel.textContent = `Сбор: ${stepLabel} (Приостановлен)`;
@@ -357,23 +370,23 @@ collectBtn.addEventListener('click', async () => {
 
     const options = {
         fields: {
-            channel:      document.getElementById('cb_channel').checked,
-            category:     document.getElementById('cb_category').checked,
-            tags:         document.getElementById('cb_tags').checked,
-            viewers:      document.getElementById('cb_viewers').checked,
-            followers:    document.getElementById('cb_followers').checked,
-            title:        document.getElementById('cb_title').checked,
-            language:     document.getElementById('cb_language').checked,
-            url:          document.getElementById('cb_url').checked,
-            description:  document.getElementById('cb_desc').checked,
-            social:       document.getElementById('cb_social').checked,
-            panels:       document.getElementById('cb_panels').checked
+            channel: document.getElementById('cb_channel').checked,
+            category: document.getElementById('cb_category').checked,
+            tags: document.getElementById('cb_tags').checked,
+            viewers: document.getElementById('cb_viewers').checked,
+            followers: document.getElementById('cb_followers').checked,
+            title: document.getElementById('cb_title').checked,
+            language: document.getElementById('cb_language').checked,
+            url: document.getElementById('cb_url').checked,
+            description: document.getElementById('cb_desc').checked,
+            social: document.getElementById('cb_social').checked,
+            panels: document.getElementById('cb_panels').checked
         },
-        langFilter:  selectedLangs.length > 0 ? selectedLangs : ['all'],
-        subOnly:     document.getElementById('cb_subonly').checked,
-        maxStreams:  parseInt(document.getElementById('max_streams').value) || 0,
-        format:      document.querySelector('input[name="format"]:checked').value,
-        sortDir:     document.querySelector('input[name="sort_dir"]:checked').value
+        langFilter: selectedLangs.length > 0 ? selectedLangs : ['all'],
+        subOnly: document.getElementById('cb_subonly').checked,
+        maxStreams: parseInt(document.getElementById('max_streams').value) || 0,
+        format: document.querySelector('input[name="format"]:checked').value,
+        sortDir: document.querySelector('input[name="sort_dir"]:checked').value
     };
 
     // Сбрасываем кнопки управления перед стартом
@@ -415,17 +428,17 @@ downloadBtn.addEventListener('click', () => {
     const currentSort = document.querySelector('input[name="sort_dir"]:checked').value;
     // Собираем текущее состояние чекбоксов для фильтрации полей при скачивании
     const currentFields = {
-        title:        document.getElementById('cb_title').checked,
-        channel:      document.getElementById('cb_channel').checked,
-        category:     document.getElementById('cb_category').checked,
-        viewers:      document.getElementById('cb_viewers').checked,
-        followers:    document.getElementById('cb_followers').checked,
-        language:     document.getElementById('cb_language').checked,
-        tags:         document.getElementById('cb_tags').checked,
-        url:          document.getElementById('cb_url').checked,
-        description:  document.getElementById('cb_desc').checked,
-        social:       document.getElementById('cb_social').checked,
-        panels:       document.getElementById('cb_panels').checked
+        title: document.getElementById('cb_title').checked,
+        channel: document.getElementById('cb_channel').checked,
+        category: document.getElementById('cb_category').checked,
+        viewers: document.getElementById('cb_viewers').checked,
+        followers: document.getElementById('cb_followers').checked,
+        language: document.getElementById('cb_language').checked,
+        tags: document.getElementById('cb_tags').checked,
+        url: document.getElementById('cb_url').checked,
+        description: document.getElementById('cb_desc').checked,
+        social: document.getElementById('cb_social').checked,
+        panels: document.getElementById('cb_panels').checked
     };
     chrome.runtime.sendMessage({ action: 'download_last_data', format: currentFormat, fields: currentFields, sortDir: currentSort });
 });
@@ -444,10 +457,10 @@ defaultSettingsBtn.addEventListener('click', () => {
     document.getElementById('cb_title').checked = true;
     document.getElementById('cb_language').checked = true;
     document.getElementById('cb_url').checked = true;
-    document.getElementById('cb_desc').checked     = true;
-    document.getElementById('cb_social').checked   = true;
-    document.getElementById('cb_panels').checked   = false; // медленный запрос
-    document.getElementById('cb_subonly').checked  = false;
+    document.getElementById('cb_desc').checked = true;
+    document.getElementById('cb_social').checked = true;
+    document.getElementById('cb_panels').checked = false; // медленный запрос
+    document.getElementById('cb_subonly').checked = false;
 
     document.querySelectorAll('input[name="lang_checkbox"]').forEach(cb => {
         cb.checked = (cb.value === 'all');
@@ -474,10 +487,10 @@ fullResetBtn.addEventListener('click', () => {
             document.getElementById('cb_title').checked = true;
             document.getElementById('cb_language').checked = true;
             document.getElementById('cb_url').checked = true;
-            document.getElementById('cb_desc').checked     = true;
-            document.getElementById('cb_social').checked   = true;
-            document.getElementById('cb_panels').checked   = false;
-            document.getElementById('cb_subonly').checked  = false;
+            document.getElementById('cb_desc').checked = true;
+            document.getElementById('cb_social').checked = true;
+            document.getElementById('cb_panels').checked = false;
+            document.getElementById('cb_subonly').checked = false;
 
             document.querySelectorAll('input[name="lang_checkbox"]').forEach(cb => {
                 cb.checked = (cb.value === 'all');
@@ -513,6 +526,39 @@ downloadLogsBtn.addEventListener('click', () => {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
+    });
+});
+
+// ─── Обработчики панели отладки ──────────────────────────────────────────
+debugToggleBtn.addEventListener('click', () => {
+    const isShowingDebug = debugView.style.display === 'block';
+    if (isShowingDebug) {
+        debugView.style.display = 'none';
+        mainView.style.display = 'block';
+        debugToggleBtn.classList.remove('active');
+    } else {
+        mainView.style.display = 'none';
+        debugView.style.display = 'block';
+        debugToggleBtn.classList.add('active');
+    }
+});
+
+debugBackBtn.addEventListener('click', () => {
+    debugView.style.display = 'none';
+    mainView.style.display = 'block';
+    debugToggleBtn.classList.remove('active');
+});
+
+cbDisableLogging.addEventListener('change', () => {
+    chrome.storage.local.set({ isLoggingDisabled: cbDisableLogging.checked });
+});
+
+clearLogsBtn.addEventListener('click', () => {
+    chrome.runtime.sendMessage({ action: 'clear_logs' }, (res) => {
+        if (res && res.ok) {
+            showPill('done', '✓ Логи очищены');
+            setTimeout(() => { statusPill.style.display = 'none'; }, 2000);
+        }
     });
 });
 

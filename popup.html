@@ -571,7 +571,8 @@
         <label class="checkbox-label"><input type="checkbox" id="cb_desc" checked> Описание</label>
         <label class="checkbox-label"><input type="checkbox" id="cb_social" checked> Соц. сети</label>
         <label class="checkbox-label"><input type="checkbox" id="cb_panels"> Панели</label>
-        <label class="checkbox-label"><input type="checkbox" id="cb_uptime"> Аптайм</label>
+        <label class="checkbox-label"><input type="checkbox" id="cb_starttime"> Время начала</label>
+        <label class="checkbox-label"><input type="checkbox" id="cb_duration"> Продолжительность</label>
       </div>
     </div>
 
@@ -584,6 +585,28 @@
       <label class="checkbox-label" style="margin-top: 8px;">
         <input type="checkbox" id="cb_subonly"> Включать приватные (Sub-Only)
       </label>
+    </div>
+
+    <!-- ФОРМАТИРОВАНИЕ -->
+    <div class="section" id="format-section">
+      <div class="section-title">Формат времени и продолжительности</div>
+      <div style="margin-bottom: 10px;">
+        <label style="display: block; font-size: 13px; color: var(--text-muted); margin-bottom: 4px;">Время начала</label>
+        <select id="format_starttime">
+          <option value="iso" selected>ISO 8601 (рекомендуется)</option>
+          <option value="unix">Unixtime</option>
+          <option value="gmt">GMT 0</option>
+          <option value="local12">Местное (12 часов)</option>
+          <option value="local24">Местное (24 часа)</option>
+        </select>
+      </div>
+      <div>
+        <label style="display: block; font-size: 13px; color: var(--text-muted); margin-bottom: 4px;">Продолжительность</label>
+        <select id="format_duration">
+          <option value="hms" selected>Часы:Минуты:Секунды (02:15:30)</option>
+          <option value="sec">Всего секунд (8130s)</option>
+        </select>
+      </div>
     </div>
 
     <div class="section" id="sort-section">

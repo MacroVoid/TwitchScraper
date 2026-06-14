@@ -111,8 +111,11 @@ function saveUISettings() {
         cb_desc: document.getElementById('cb_desc').checked,
         cb_social: document.getElementById('cb_social').checked,
         cb_panels: document.getElementById('cb_panels').checked,
-        cb_uptime: document.getElementById('cb_uptime').checked,
+        cb_starttime: document.getElementById('cb_starttime').checked,
+        cb_duration: document.getElementById('cb_duration').checked,
         cb_subonly: document.getElementById('cb_subonly').checked,
+        format_starttime: document.getElementById('format_starttime').value,
+        format_duration: document.getElementById('format_duration').value,
         max_streams: document.getElementById('max_streams').value,
         format: document.querySelector('input[name="format"]:checked').value,
         sort_dir: document.querySelector('input[name="sort_dir"]:checked').value,
@@ -136,8 +139,11 @@ function loadUISettings() {
             if (s.cb_desc !== undefined) document.getElementById('cb_desc').checked = s.cb_desc;
             if (s.cb_social !== undefined) document.getElementById('cb_social').checked = s.cb_social;
             if (s.cb_panels !== undefined) document.getElementById('cb_panels').checked = s.cb_panels;
-            if (s.cb_uptime !== undefined) document.getElementById('cb_uptime').checked = s.cb_uptime;
+            if (s.cb_starttime !== undefined) document.getElementById('cb_starttime').checked = s.cb_starttime;
+            if (s.cb_duration !== undefined) document.getElementById('cb_duration').checked = s.cb_duration;
             if (s.cb_subonly !== undefined) document.getElementById('cb_subonly').checked = s.cb_subonly;
+            if (s.format_starttime !== undefined) document.getElementById('format_starttime').value = s.format_starttime;
+            if (s.format_duration !== undefined) document.getElementById('format_duration').value = s.format_duration;
             if (s.max_streams !== undefined) document.getElementById('max_streams').value = s.max_streams;
 
             if (s.format !== undefined) {
@@ -383,7 +389,12 @@ collectBtn.addEventListener('click', async () => {
             description: document.getElementById('cb_desc').checked,
             social: document.getElementById('cb_social').checked,
             panels: document.getElementById('cb_panels').checked,
-            uptime: document.getElementById('cb_uptime').checked
+            starttime: document.getElementById('cb_starttime').checked,
+            duration: document.getElementById('cb_duration').checked
+        },
+        timeFormat: {
+            start: document.getElementById('format_starttime').value,
+            duration: document.getElementById('format_duration').value
         },
         langFilter: selectedLangs.length > 0 ? selectedLangs : ['all'],
         subOnly: document.getElementById('cb_subonly').checked,
@@ -442,9 +453,14 @@ downloadBtn.addEventListener('click', () => {
         description: document.getElementById('cb_desc').checked,
         social: document.getElementById('cb_social').checked,
         panels: document.getElementById('cb_panels').checked,
-        uptime: document.getElementById('cb_uptime').checked
+        starttime: document.getElementById('cb_starttime').checked,
+        duration: document.getElementById('cb_duration').checked
     };
-    chrome.runtime.sendMessage({ action: 'download_last_data', format: currentFormat, fields: currentFields, sortDir: currentSort });
+    const currentTimeFormat = {
+        start: document.getElementById('format_starttime').value,
+        duration: document.getElementById('format_duration').value
+    };
+    chrome.runtime.sendMessage({ action: 'download_last_data', format: currentFormat, fields: currentFields, timeFormat: currentTimeFormat, sortDir: currentSort });
 });
 
 resetBtn.addEventListener('click', () => {
@@ -464,8 +480,11 @@ defaultSettingsBtn.addEventListener('click', () => {
     document.getElementById('cb_desc').checked = true;
     document.getElementById('cb_social').checked = true;
     document.getElementById('cb_panels').checked = false; // медленный запрос
-    document.getElementById('cb_uptime').checked = false; // не включен по умолчанию
+    document.getElementById('cb_starttime').checked = false; // не включен по умолчанию
+    document.getElementById('cb_duration').checked = false; // не включен по умолчанию
     document.getElementById('cb_subonly').checked = false;
+    document.getElementById('format_starttime').value = 'iso';
+    document.getElementById('format_duration').value = 'hms';
 
     document.querySelectorAll('input[name="lang_checkbox"]').forEach(cb => {
         cb.checked = (cb.value === 'all');

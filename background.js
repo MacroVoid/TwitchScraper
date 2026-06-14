@@ -285,13 +285,45 @@ async function fetchChannelExtrasBatch(logins) {
 }
 
 // ─── Инжект скачивания в Twitch-вкладку ──────────────────────────────────────
-function triggerDownload(data, format, filename, fields, sortDir) {
+function triggerDownload(data, format, filename, fields, sortDir, timeFormat) {
     // fields — объект с булевыми флагами (что показывать)
-    // Если fields не передан — показываем всё
     const f = fields || {
         channel: true, category: true, tags: true, viewers: true,
         followers: true, title: true, language: true, url: true,
-        description: true, social: true, panels: true, uptime: true
+        description: true, social: true, panels: true, starttime: true, duration: true
+    };
+    const tf = timeFormat || { start: 'iso', duration: 'hms' };
+
+    // Функция форматирования времени начала
+    const formatStart = (isoString) => {
+        if (!isoString) return '—';
+        const d = new Date(isoString);
+        if (isNaN(d.getTime())) return isoString;
+        switch (tf.start) {
+            case 'unix': return Math.floor(d.getTime() / 1000).toString();
+            case 'gmt': return d.toUTCString();
+            case 'local12': return d.toLocaleString();
+            case 'local24': return d.toLocaleString('ru-RU');
+            case 'iso':
+            default: return isoString;
+        }
+    };
+
+    // Функция форматирования продолжительности
+    const formatDuration = (isoString) => {
+        if (!isoString) return '—';
+        const d = new Date(isoString);
+        if (isNaN(d.getTime())) return '—';
+        const diffMs = Date.now() - d.getTime();
+        const totalSecs = Math.floor(diffMs / 1000);
+        if (tf.duration === 'sec') {
+            return `${totalSecs}s`;
+        } else {
+            const hrs = Math.floor(totalSecs / 3600);
+            const mins = Math.floor((totalSecs % 3600) / 60);
+            const secs = totalSecs % 60;
+            return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
     };
 
     // Сортируем локальные данные по зрителям перед экспортом
@@ -316,8 +348,9 @@ function triggerDownload(data, format, filename, fields, sortDir) {
             if (f.language    && s.language    !== undefined) out.language    = s.language;
             if (f.tags        && s.tags        !== undefined) out.tags        = s.tags;
             if (f.url         && s.url         !== undefined) out.url         = s.url;
+            if (f.starttime   && s.createdAt   !== undefined) out.startTime   = formatStart(s.createdAt);
+            if (f.duration    && s.createdAt   !== undefined) out.duration    = formatDuration(s.createdAt);
             if (f.description && s.description !== undefined) out.description = s.description;
-            if (f.uptime      && s.uptime      !== undefined) out.uptime      = s.uptime;
             if (f.social      && s.social      && s.social.length > 0) out.social      = s.social;
             if (f.panels      && s.panels      && s.panels.length > 0) out.panels      = s.panels;
             return out;
@@ -336,15 +369,12 @@ function triggerDownload(data, format, filename, fields, sortDir) {
             if (f.language  && s.language)                   content += `- **Язык:** ${s.language}\n`;
             if (f.tags      && s.tags?.length)               content += `- **Теги:** ${s.tags.join(', ')}\n`;
             if (f.url       && s.url)                        content += `- **Ссылка:** ${s.url}\n`;
+            
+            if (f.starttime && s.createdAt)                  content += `- **Время начала:** ${formatStart(s.createdAt)}\n`;
+            if (f.duration  && s.createdAt)                  content += `- **Продолжительность:** ${formatDuration(s.createdAt)}\n`;
+
             if (f.description && s.description) {
                 content += `- **Описание:**\n<details>\n<summary>Развернуть описание</summary>\n<blockquote>\n${s.description}\n</blockquote>\n</details>\n`;
-            }
-            if (f.uptime && s.uptime) {
-                const start = new Date(s.uptime);
-                const diffMs = Date.now() - start.getTime();
-                const hrs = Math.floor(diffMs / 3600000);
-                const mins = Math.floor((diffMs % 3600000) / 60000);
-                content += `- **Аптайм:** ${hrs}h ${mins}m (Started at ${start.toLocaleTimeString()})\n`;
             }
 
             // Соц. сети
@@ -361,20 +391,14 @@ function triggerDownload(data, format, filename, fields, sortDir) {
             if (f.panels && s.panels?.length) {
                 content += `\n**Панели канала:**\n<details>\n<summary>Развернуть панели (${s.panels.length})</summary>\n<blockquote>\n\n`;
                 s.panels.forEach((p, idx) => {
-                    // Заголовок панели (если есть) как ссылка или просто текст (используем жирный шрифт вместо ###)
                     if (p.title && p.linkURL) {
                         content += `**[${p.title}](${p.linkURL})**  \n`;
                     } else if (p.title) {
                         content += `**${p.title}**  \n`;
                     } else if (p.linkURL) {
-                        // Панель без заголовка — только ссылка (обычно картинка-баннер)
                         content += `**[🔗 Ссылка](${p.linkURL})**  \n`;
                     }
-
-                    // Alt text (если есть)
                     if (p.altText) content += `> ${p.altText}  \n`;
-
-                    // Описание панели с сохранением переносов строк
                     if (p.description && p.description.trim()) {
                         const lines = p.description.split('\n');
                         lines.forEach(line => {
@@ -402,13 +426,13 @@ function triggerDownload(data, format, filename, fields, sortDir) {
     setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 500);
 }
 
-function downloadData(data, format, tabId, fields, sortDir) {
+function downloadData(data, format, tabId, fields, sortDir, timeFormat) {
     if (!data || data.length === 0) { setIdle(); return; }
     const filename = `twitch_streams_${Date.now()}.${format}`;
     chrome.scripting.executeScript({
         target: { tabId },
         func: triggerDownload,
-        args: [data, format, filename, fields, sortDir]
+        args: [data, format, filename, fields, sortDir, timeFormat]
     }).catch(e => console.error("Download inject error:", e));
 }
 
@@ -534,9 +558,9 @@ async function collectStreams(slug, options, tabId) {
             }
         }
 
-        // Если нужны соц. сети ИЛИ аптайм — запрашиваем пакетом по логинам
+        // Если нужны соц. сети ИЛИ время — запрашиваем пакетом по логинам
         let extrasMap = {};
-        if ((options.fields.social || options.fields.uptime) && batchNodes.length > 0) {
+        if ((options.fields.social || options.fields.starttime || options.fields.duration) && batchNodes.length > 0) {
             const logins = batchNodes.map(n => n.broadcaster?.login).filter(Boolean);
             extrasMap = await fetchChannelExtrasBatch(logins);
         }
@@ -565,11 +589,11 @@ async function collectStreams(slug, options, tabId) {
                 s.panels = panelsMap[node.broadcaster?.id] || [];
             }
 
-            // Соц. сети и Аптайм — сохраняем оба поля, если запросили хотя бы одно
-            if (options.fields.social || options.fields.uptime) {
+            // Соц. сети и Время — сохраняем оба поля, если запросили хотя бы одно
+            if (options.fields.social || options.fields.starttime || options.fields.duration) {
                 const ext = extrasMap[node.broadcaster?.login] || { socials: [], createdAt: null };
                 s.social = ext.socials;
-                s.uptime = ext.createdAt;
+                s.createdAt = ext.createdAt;
             }
 
             collected.set(node.id, s);
@@ -612,12 +636,16 @@ async function collectStreams(slug, options, tabId) {
 
     const data = Array.from(collected.values());
     const doneState = { phase: 'done', collected: data.length, target: options.maxStreams || 0, error: null };
-    
-    chrome.storage.local.set({ 
-        scrapingState: doneState, 
-        scrapedData: data, 
-        scrapeMeta: { format: options.format || 'json', tabId: tabId, sortDir: options.sortDir || 'desc' } 
-    }, () => {
+        chrome.storage.local.set({ 
+            scrapedData: data, 
+            scrapingState: doneState,
+            scrapeMeta: { 
+                format: options.format || 'json', 
+                tabId: tabId, 
+                sortDir: options.sortDir || 'desc',
+                timeFormat: options.timeFormat || { start: 'iso', duration: 'hms' }
+            } 
+        }, () => {
         setState(doneState);
     });
 }
@@ -648,10 +676,10 @@ async function enrichData(data, fields) {
         setState(pausedState);
     }
 
-    // Соц. сети и Аптайм (доп. поля)
-    if (fields.social || fields.uptime) {
+    // Соц. сети и Время (доп. поля)
+    if (fields.social || fields.starttime || fields.duration) {
         const missing = data.filter(s => 
-            ((fields.social && s.social === undefined) || (fields.uptime && s.uptime === undefined)) && s._login
+            ((fields.social && s.social === undefined) || ((fields.starttime || fields.duration) && s.createdAt === undefined)) && s._login
         );
         const total = missing.length;
         if (total > 0) {
@@ -668,7 +696,7 @@ async function enrichData(data, fields) {
                 chunk.forEach(s => { 
                     const ext = extrasMap[s._login] || { socials: [], createdAt: null };
                     s.social = ext.socials;
-                    s.uptime = ext.createdAt;
+                    s.createdAt = ext.createdAt;
                 });
                 done += chunk.length;
                 chrome.storage.local.set({ scrapedData: data });
@@ -749,14 +777,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 const fields = message.fields || null;
                 let data = res.scrapedData;
 
+                const tf = message.timeFormat || res.scrapeMeta.timeFormat || { start: 'iso', duration: 'hms' };
                 const needEnrich = fields && (
                     (fields.social && data.some(s => s.social === undefined)) ||
-                    (fields.uptime && data.some(s => s.uptime === undefined)) ||
+                    ((fields.starttime || fields.duration) && data.some(s => s.createdAt === undefined)) ||
                     (fields.panels && data.some(s => s.panels === undefined))
                 );
 
                 if (needEnrich) {
                     // Начинаем обогащение, но сам файл не скачиваем автоматически
+                    res.scrapeMeta.timeFormat = tf;
+                    chrome.storage.local.set({ scrapeMeta: res.scrapeMeta });
                     const enriched = await enrichData(data, fields);
                     if (enriched !== null) {
                         // Обогащение завершилось до конца: сохраняем и показываем кнопку "Скачать файл"
@@ -767,7 +798,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 } else {
                     // Обогащение не требуется (уже пройдено или отменено) — скачиваем файл сразу
                     const sortDir = message.sortDir || res.scrapeMeta.sortDir || 'desc';
-                    downloadData(data, format, res.scrapeMeta.tabId, fields, sortDir);
+                    downloadData(data, format, res.scrapeMeta.tabId, fields, sortDir, tf);
                 }
             }
         });
@@ -784,7 +815,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.action === 'resume_enrich') {
         chrome.storage.local.get(['scrapedData', 'scrapingState', 'scrapeMeta'], async (res) => {
             if (res.scrapedData && res.scrapingState) {
-                const fields = res.scrapingState.enrichFields || { social: true, uptime: true, panels: true };
+                const fields = res.scrapingState.enrichFields || { social: true, starttime: true, duration: true, panels: true };
                 let data = res.scrapedData;
 
                 const enriched = await enrichData(data, fields);
@@ -804,15 +835,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             if (res.scrapedData) {
                 const data = res.scrapedData;
                 const state = res.scrapingState || {};
-                const fields = state.enrichFields || { social: true, uptime: true, panels: true };
+                const fields = state.enrichFields || { social: true, starttime: true, duration: true, panels: true };
 
                 // Заполняем необработанные поля null, чтобы они не обогащались и не попадали в файл
                 data.forEach(s => {
                     if (fields.social && s.social === undefined) {
                         s.social = null;
                     }
-                    if (fields.uptime && s.uptime === undefined) {
-                        s.uptime = null;
+                    if ((fields.starttime || fields.duration) && s.createdAt === undefined) {
+                        s.createdAt = null;
                     }
                     if (fields.panels && s.panels === undefined) {
                         s.panels = null;

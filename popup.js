@@ -62,6 +62,7 @@ const continueEnrichBtn    = document.getElementById('continue_enrich_btn');
 const cancelEnrichBtn      = document.getElementById('cancel_enrich_btn');
 const defaultSettingsBtn = document.getElementById('default_settings_btn');
 const fullResetBtn = document.getElementById('full_reset_btn');
+const downloadLogsBtn = document.getElementById('download_logs_btn');
 
 // Заполняем список языков удобными чекбоксами
 TWITCH_LANGUAGES.forEach(lang => {
@@ -482,5 +483,25 @@ fullResetBtn.addEventListener('click', () => {
             setTimeout(() => { statusPill.style.display = 'none'; }, 3000);
         });
     }
+});
+
+downloadLogsBtn.addEventListener('click', () => {
+    chrome.storage.local.get('debugLogs', (res) => {
+        const logs = res.debugLogs || [];
+        if (logs.length === 0) {
+            alert('Логи пока пусты.');
+            return;
+        }
+        const text = logs.join('\n');
+        const blob = new Blob([text], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `twitch_scraper_debug_${Date.now()}.txt`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    });
 });
 

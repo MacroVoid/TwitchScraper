@@ -11,6 +11,20 @@ let _isRunning = false;
 let _shouldStopEnrich = false;
 let _isEnriching = false;
 
+let _logsBuffer = [];
+chrome.storage.local.get('debugLogs', (res) => {
+    if (res.debugLogs) _logsBuffer = res.debugLogs;
+});
+
+function addLog(msg) {
+    const timestamp = new Date().toISOString().replace('T', ' ').substring(0, 19);
+    const logLine = `[${timestamp}] ${msg}`;
+    console.log(logLine);
+    _logsBuffer.push(logLine);
+    if (_logsBuffer.length > 500) _logsBuffer.shift();
+    chrome.storage.local.set({ debugLogs: _logsBuffer });
+}
+
 // Оставляем старый ID как запасной (fallback) на случай, 
 // если мы захотим сделать запрос до того, как поймаем новый
 let twitchHeaders = {
@@ -27,7 +41,10 @@ chrome.webRequest.onSendHeaders.addListener(
                 
                 // Добавили 'client-id' в массив!
                 if (['client-id', 'client-integrity', 'authorization', 'x-device-id', 'client-version', 'client-session-id'].includes(name)) {
-                    twitchHeaders[header.name] = header.value;
+                    if (twitchHeaders[header.name] !== header.value) {
+                        twitchHeaders[header.name] = header.value;
+                        addLog(`Перехвачен/изменен заголовок: ${header.name}`);
+                    }
                 }
             }
         }
@@ -290,6 +307,7 @@ async function collectStreams(slug, options, tabId) {
     _isRunning = true;
     _shouldStop = false;
     _shouldFinish = false;
+    addLog(`=== ЗАПУСК СБОРА === Категория: ${slug}, Лимит: ${options.maxStreams || 'без лимита'}`);
 
     const maxStreams = options.maxStreams > 0 ? options.maxStreams : Infinity;
     
@@ -298,6 +316,7 @@ async function collectStreams(slug, options, tabId) {
     const isAll = options.langFilter.includes('all');
     // Если выбрано 'all', передаем полный массив. Иначе - мапим все выбранные языки
     const langFilter = isAll ? TWITCH_ALL_LANGS : options.langFilter.map(l => l.toUpperCase());
+    addLog(`Языки: ${JSON.stringify(langFilter)}, SubOnly: ${options.subOnly}`);
 
     const collected = new Map();
     let cursor = null;
@@ -308,25 +327,36 @@ async function collectStreams(slug, options, tabId) {
     while (collected.size < maxStreams && !_shouldStop && !_shouldFinish) {
         let json;
         try {
+            const body = buildGQLBody(slug, langFilter, cursor, options.subOnly);
+            addLog(`Запрос GQL (курсор: ${cursor || 'нет'}). Активные заголовки: ${JSON.stringify(Object.keys(twitchHeaders))}`);
+            
             const resp = await fetch("https://gql.twitch.tv/gql", {
                 method: "POST",
                 headers: twitchHeaders,
-                // ИЗМЕНЕНО: передаем options.subOnly в функцию генерации запроса
-                body: buildGQLBody(slug, langFilter, cursor, options.subOnly) 
+                body: body 
             });
+            addLog(`Ответ сервера. HTTP-код: ${resp.status}`);
+            if (resp.status !== 200) {
+                const text = await resp.text();
+                addLog(`Ошибка HTTP. Тело ответа: ${text.substring(0, 400)}`);
+            }
             json = await resp.json();
         } catch (e) {
-            console.error("[TwitchScraper] fetch error:", e);
+            addLog(`Ошибка при fetch/json: ${e.message}`);
             emptyStreak++;
-            if (emptyStreak >= 3) break;
+            if (emptyStreak >= 3) {
+                addLog(`Прерываем сбор: 3 ошибки подряд.`);
+                break;
+            }
             await new Promise(r => setTimeout(r, 800));
             continue;
         }
 
         if (json.errors) {
-            console.warn("[TwitchScraper] GQL errors:", json.errors);
+            addLog(`Twitch вернул GraphQL ошибки: ${JSON.stringify(json.errors)}`);
             const isIntegrityError = json.errors.some(e => e.extensions?.code === 'IntegrityCheckFailed');
             if (isIntegrityError) {
+                addLog(`Ошибка целостности IntegrityCheckFailed! Сбор остановлен.`);
                 setState({ 
                     phase: 'error', 
                     collected: collected.size, 
@@ -338,18 +368,30 @@ async function collectStreams(slug, options, tabId) {
             }
 
             emptyStreak++;
-            if (emptyStreak >= 3) break;
+            if (emptyStreak >= 3) {
+                addLog(`Прерываем сбор: 3 ошибки GraphQL подряд.`);
+                break;
+            }
             await new Promise(r => setTimeout(r, 600));
             continue;
         }
 
         const streams = json.data?.game?.streams;
-        if (!streams) { emptyStreak++; if (emptyStreak >= 3) break; continue; }
+        if (!streams) {
+            addLog(`Отсутствует поле game.streams в ответе GraphQL!`);
+            emptyStreak++;
+            if (emptyStreak >= 3) break;
+            continue;
+        }
 
         const edges = streams.edges || [];
+        addLog(`Успешно получено элементов: ${edges.length}`);
         if (edges.length === 0) {
             emptyStreak++;
-            if (emptyStreak >= 2) break;
+            if (emptyStreak >= 2) {
+                addLog(`Прерываем сбор: 2 раза подряд получено 0 элементов.`);
+                break;
+            }
             await new Promise(r => setTimeout(r, 500));
             continue;
         }
@@ -433,7 +475,17 @@ async function collectStreams(slug, options, tabId) {
 
     _isRunning = false;
 
-    if (_shouldStop) { setIdle(); return; }
+    if (_shouldStop) {
+        addLog(`Сбор остановлен пользователем (Стоп). Собрано элементов: ${collected.size}`);
+        setIdle();
+        return;
+    }
+
+    if (_shouldFinish) {
+        addLog(`Сбор принудительно завершен пользователем (Завершить). Собрано элементов: ${collected.size}`);
+    } else {
+        addLog(`Сбор завершен полностью. Всего собрано элементов: ${collected.size}`);
+    }
 
     const data = Array.from(collected.values());
     const doneState = { phase: 'done', collected: data.length, target: options.maxStreams || 0, error: null };
@@ -450,12 +502,14 @@ async function collectStreams(slug, options, tabId) {
 // ─── Обогащение уже собранных данных с прогрессом ────────────────────────
 async function enrichData(data, fields) {
     if (!data || !fields) return data;
+    addLog(`=== НАЧАЛО ОБОГАЩЕНИЯ === Стримов: ${data.length}, Поля: ${JSON.stringify(fields)}`);
     _isEnriching = true;
     _shouldStopEnrich = false;
     const totalStreams = data.length;
 
     // Функция прерывания: сохраняем что есть и переводим в состояние паузы
     function stopAndRestore(step, done, total) {
+        addLog(`Обогащение приостановлено на шаге: ${step}. Обработано: ${done}/${total}`);
         _isEnriching = false;
         chrome.storage.local.set({ scrapedData: data });
         const pausedState = {
@@ -518,6 +572,7 @@ async function enrichData(data, fields) {
         }
     }
 
+    addLog(`=== ОБОГАЩЕНИЕ ЗАВЕРШЕНО УСПЕШНО ===`);
     _isEnriching = false;
     return data;
 }

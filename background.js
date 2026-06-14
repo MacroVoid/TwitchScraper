@@ -636,6 +636,29 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return true;
     }
 
+    if (message.action === 'full_reset') {
+        _isRunning = false;
+        _shouldStop = true;
+        _shouldFinish = false;
+        _shouldStopEnrich = true;
+        _isEnriching = false;
+
+        // Восстанавливаем заголовки по умолчанию
+        twitchHeaders = {
+            "Client-Id": "kimne78kx3ncx6brgo4mv6wki5h1ko",
+            "Content-Type": "application/json"
+        };
+
+        chrome.storage.local.clear(() => {
+            const idleState = { phase: 'idle', collected: 0, target: 0, error: null };
+            chrome.storage.local.set({ scrapingState: idleState }, () => {
+                setState(idleState);
+                sendResponse({ ok: true });
+            });
+        });
+        return true;
+    }
+
     if (message.action === 'reset_state') {
         // Очищаем сохранённые данные при сбросе
         chrome.storage.local.remove(['scrapedData', 'scrapeMeta']);

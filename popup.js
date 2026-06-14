@@ -61,6 +61,7 @@ const enrichPausedButtons  = document.getElementById('enrich-paused-buttons');
 const continueEnrichBtn    = document.getElementById('continue_enrich_btn');
 const cancelEnrichBtn      = document.getElementById('cancel_enrich_btn');
 const defaultSettingsBtn = document.getElementById('default_settings_btn');
+const fullResetBtn = document.getElementById('full_reset_btn');
 
 // Заполняем список языков удобными чекбоксами
 TWITCH_LANGUAGES.forEach(lang => {
@@ -449,5 +450,37 @@ defaultSettingsBtn.addEventListener('click', () => {
     if (jsonRadio) jsonRadio.checked = true;
 
     saveUISettings();
+});
+
+fullResetBtn.addEventListener('click', () => {
+    if (confirm('Вы уверены, что хотите полностью сбросить расширение? Это очистит кэш, настройки и текущий прогресс.')) {
+        chrome.runtime.sendMessage({ action: 'full_reset' }, () => {
+            resetToIdle();
+            document.getElementById('cb_channel').checked = true;
+            document.getElementById('cb_category').checked = true;
+            document.getElementById('cb_tags').checked = true;
+            document.getElementById('cb_viewers').checked = true;
+            document.getElementById('cb_followers').checked = true;
+            document.getElementById('cb_title').checked = true;
+            document.getElementById('cb_language').checked = true;
+            document.getElementById('cb_url').checked = true;
+            document.getElementById('cb_desc').checked     = true;
+            document.getElementById('cb_social').checked   = true;
+            document.getElementById('cb_panels').checked   = false;
+            document.getElementById('cb_subonly').checked  = false;
+
+            document.querySelectorAll('input[name="lang_checkbox"]').forEach(cb => {
+                cb.checked = (cb.value === 'all');
+            });
+
+            document.getElementById('max_streams').value = "0";
+            const jsonRadio = document.querySelector('input[name="format"][value="json"]');
+            if (jsonRadio) jsonRadio.checked = true;
+
+            saveUISettings();
+            showPill('done', '✓ Сброшено');
+            setTimeout(() => { statusPill.style.display = 'none'; }, 3000);
+        });
+    }
 });
 

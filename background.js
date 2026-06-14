@@ -53,11 +53,10 @@ function setIdle() {
 }
 
 // ─── Вспомогательные ──────────────────────────────────────────────────────
-function buildGQLBody(slug, langFilter, cursor) {
-    // GraphQL на Twitch ожидает список языков как ENUM (без кавычек).
-    // То есть [EN, RU, ES], а не ["EN", "RU", "ES"]. 
-    // Поэтому мы просто склеиваем массив через запятую:
+function buildGQLBody(slug, langFilter, cursor, subOnly) {
     const langString = langFilter.join(', '); 
+    // Если галочка стоит, добавляем параметр, иначе оставляем пустым
+    const restrictedClause = subOnly ? 'includeRestricted: [SUB_ONLY_LIVE]' : '';
     
     return JSON.stringify({
         query: `
@@ -69,6 +68,7 @@ function buildGQLBody(slug, langFilter, cursor) {
                     options: {
                         sort: VIEWER_COUNT
                         broadcasterLanguages: [${langString}]
+                        ${restrictedClause}
                         recommendationsContext: { platform: "web" }
                         systemFilters: []
                     }
@@ -78,7 +78,7 @@ function buildGQLBody(slug, langFilter, cursor) {
                         cursor
                         node {
                             id title viewersCount
-                            broadcaster { login displayName }
+                            broadcaster { login displayName description } # <-- Добавили description!
                             freeformTags { name }
                             game { name displayName }
                         }
@@ -103,10 +103,17 @@ function triggerDownload(data, format, filename) {
             content += `## ${i + 1}. ${s.title || '—'}\n\n`;
             if (s.channel)      content += `- **Канал:** ${s.channel}\n`;
             if (s.category)     content += `- **Категория:** ${s.category}\n`;
-            if (s.viewers)      content += `- **Зрители:** ${s.viewers}\n`;
+            
+            // Проверяем !== undefined, чтобы 0 зрителей тоже выводилось
+            if (s.viewers !== undefined) content += `- **Зрители:** ${s.viewers}\n`;
+            
             if (s.language)     content += `- **Язык:** ${s.language}\n`;
             if (s.tags?.length) content += `- **Теги:** ${s.tags.join(', ')}\n`;
             if (s.url)          content += `- **Ссылка:** ${s.url}\n`;
+            
+            // Добавляем описание в Markdown
+            if (s.description)  content += `- **Описание:** ${s.description}\n`;
+            
             content += '\n---\n\n';
         });
         mimeType = 'text/markdown';
@@ -155,7 +162,8 @@ async function collectStreams(slug, options, tabId) {
             const resp = await fetch("https://gql.twitch.tv/gql", {
                 method: "POST",
                 headers: twitchHeaders,
-                body: buildGQLBody(slug, langFilter, cursor)
+                // ИЗМЕНЕНО: передаем options.subOnly в функцию генерации запроса
+                body: buildGQLBody(slug, langFilter, cursor, options.subOnly) 
             });
             json = await resp.json();
         } catch (e) {
@@ -209,7 +217,10 @@ async function collectStreams(slug, options, tabId) {
             if (options.fields.channel)     s.channel     = node.broadcaster?.displayName || node.broadcaster?.login || "";
             if (options.fields.category)    s.category    = node.game?.displayName || node.game?.name || slug;
             if (options.fields.tags)        s.tags        = node.freeformTags?.map(t => t.name) ?? [];
-            if (options.fields.viewers)     s.viewers     = (node.viewersCount || 0).toLocaleString('ru-RU') + " зрителей";
+            
+            // ИЗМЕНЕНО: теперь зрители - это чистое число, без строк и форматирования
+            if (options.fields.viewers)     s.viewers     = node.viewersCount || 0;
+            
             if (options.fields.title)       s.title       = node.title || "";
             if (options.fields.url)         s.url         = `https://www.twitch.tv/${node.broadcaster?.login || ""}`;
             if (options.fields.language) {
@@ -217,7 +228,9 @@ async function collectStreams(slug, options, tabId) {
                     ? (node.freeformTags?.[0]?.name ?? "unknown")
                     : options.langFilter;
             }
-            if (options.fields.description) s.description = "Недоступно через API категорий";
+            
+            // ИЗМЕНЕНО: теперь забираем реальное описание канала из broadcaster.description
+            if (options.fields.description) s.description = node.broadcaster?.description || "";
 
             collected.set(node.id, s);
         }
@@ -291,7 +304,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.action === 'download_last_data') {
         chrome.storage.local.get(['scrapedData', 'scrapeMeta'], (res) => {
             if (res.scrapedData && res.scrapeMeta) {
-                downloadData(res.scrapedData, res.scrapeMeta.format, res.scrapeMeta.tabId);
+                // Если popup прислал новый формат — используем его, иначе берём старый из storage
+                const format = message.format || res.scrapeMeta.format;
+                downloadData(res.scrapedData, format, res.scrapeMeta.tabId);
             }
         });
         sendResponse({ ok: true });

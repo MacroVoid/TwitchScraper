@@ -198,6 +198,7 @@ collectBtn.addEventListener('click', async () => {
             description:  document.getElementById('cb_desc').checked
         },
         langFilter:  langSelect.value,
+        subOnly:     document.getElementById('cb_subonly').checked, // <-- НОВАЯ СТРОКА
         maxStreams:  parseInt(document.getElementById('max_streams').value) || 0,
         format:      document.querySelector('input[name="format"]:checked').value
     };
@@ -215,10 +216,12 @@ collectBtn.addEventListener('click', async () => {
 
 // ─── Кнопки ФИНАЛА (Скачать и Сбросить) ───────────────────────────────────
 downloadBtn.addEventListener('click', () => {
-    // Просто отправляем сигнал, background сам достанет данные из storage
-    chrome.runtime.sendMessage({ action: 'download_last_data' });
+    // Берём формат, который выбран прямо сейчас (после завершения сбора)
+    const currentFormat = document.querySelector('input[name="format"]:checked').value;
+    chrome.runtime.sendMessage({ action: 'download_last_data', format: currentFormat });
 });
 
 resetBtn.addEventListener('click', () => {
     chrome.runtime.sendMessage({ action: 'reset_state' });
 });
+

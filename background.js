@@ -78,7 +78,7 @@ function buildGQLBody(slug, langFilter, cursor, subOnly) {
                         cursor
                         node {
                             id title viewersCount
-                            broadcaster { login displayName description followers { totalCount } }
+                            broadcaster { id login displayName description followers { totalCount } }
                             freeformTags { name }
                             game { name displayName }
                         }
@@ -90,32 +90,118 @@ function buildGQLBody(slug, langFilter, cursor, subOnly) {
     });
 }
 
-// Инжект скачивания в Twitch-вкладку
-function triggerDownload(data, format, filename) {
+// ─── Запрос панелей канала ───────────────────────────────────────────────────
+async function fetchPanelsForUsers(userIds) {
+    if (!userIds || userIds.length === 0) return {};
+    const result = {};
+    // Twitch не поддерживает батч по panels, поэтому шлём по одному запросу на канал
+    // Но оборачиваем в один fetch с массивом operationName
+    const bodies = userIds.map(id => ({
+        operationName: "ChannelPanels",
+        variables: { id },
+        extensions: { persistedQuery: { version: 1, sha256Hash: "06d5b518ba3b016ebe62000151c9a81f162f2a1430eb1cf9ad0678ba56d0a768" } }
+    }));
+    try {
+        const resp = await fetch("https://gql.twitch.tv/gql", {
+            method: "POST",
+            headers: twitchHeaders,
+            body: JSON.stringify(bodies)
+        });
+        const arr = await resp.json();
+        const items = Array.isArray(arr) ? arr : [arr];
+        items.forEach(item => {
+            const panels = item?.data?.user?.panels;
+            const userId = item?.data?.user?.id;
+            if (userId && Array.isArray(panels)) {
+                result[userId] = panels
+                    .filter(p => p.title || p.linkURL || p.description || p.altText)
+                    .map(p => ({
+                        title:       p.title       || null,
+                        linkURL:     p.linkURL     || null,
+                        description: p.description || null,
+                        altText:     p.altText     || null
+                    }));
+            }
+        });
+    } catch (e) {
+        console.error("[TwitchScraper] panels fetch error:", e);
+    }
+    return result;
+}
+
+// ─── Инжект скачивания в Twitch-вкладку ──────────────────────────────────────
+function triggerDownload(data, format, filename, fields) {
+    // fields — объект с булевыми флагами (что показывать)
+    // Если fields не передан — показываем всё
+    const f = fields || {
+        channel: true, category: true, tags: true, viewers: true,
+        followers: true, title: true, language: true, url: true,
+        description: true, panels: true
+    };
+
     let content = '';
     let mimeType = '';
+
     if (format === 'json') {
-        content = JSON.stringify(data, null, 2);
+        // При JSON фильтруем поля
+        const filtered = data.map(s => {
+            const out = {};
+            if (f.title       && s.title       !== undefined) out.title       = s.title;
+            if (f.channel     && s.channel     !== undefined) out.channel     = s.channel;
+            if (f.category    && s.category    !== undefined) out.category    = s.category;
+            if (f.viewers     && s.viewers     !== undefined) out.viewers     = s.viewers;
+            if (f.followers   && s.followers   !== undefined) out.followers   = s.followers;
+            if (f.language    && s.language    !== undefined) out.language    = s.language;
+            if (f.tags        && s.tags        !== undefined) out.tags        = s.tags;
+            if (f.url         && s.url         !== undefined) out.url         = s.url;
+            if (f.description && s.description !== undefined) out.description = s.description;
+            if (f.panels      && s.panels      !== undefined) out.panels      = s.panels;
+            return out;
+        });
+        content = JSON.stringify(filtered, null, 2);
         mimeType = 'application/json';
     } else {
         content = '# Собранные трансляции Twitch\n\n';
         data.forEach((s, i) => {
-            content += `## ${i + 1}. ${s.title || '—'}\n\n`;
-            if (s.channel)      content += `- **Канал:** ${s.channel}\n`;
-            if (s.category)     content += `- **Категория:** ${s.category}\n`;
-            
-            // Проверяем !== undefined, чтобы 0 зрителей тоже выводилось
-            if (s.viewers !== undefined) content += `- **Зрители:** ${s.viewers}\n`;
-            
-            if (s.followers !== undefined) content += `- **Фолловеры:** ${s.followers}\n`;
-            
-            if (s.language)     content += `- **Язык:** ${s.language}\n`;
-            if (s.tags?.length) content += `- **Теги:** ${s.tags.join(', ')}\n`;
-            if (s.url)          content += `- **Ссылка:** ${s.url}\n`;
-            
-            // Добавляем описание в Markdown
-            if (s.description)  content += `- **Описание:** ${s.description}\n`;
-            
+            const title = f.title ? (s.title || '—') : `Запись #${i + 1}`;
+            content += `## ${i + 1}. ${title}\n\n`;
+            if (f.channel   && s.channel)                    content += `- **Канал:** ${s.channel}\n`;
+            if (f.category  && s.category)                   content += `- **Категория:** ${s.category}\n`;
+            if (f.viewers   && s.viewers     !== undefined)   content += `- **Зрители:** ${s.viewers}\n`;
+            if (f.followers && s.followers   !== undefined)   content += `- **Фолловеры:** ${s.followers}\n`;
+            if (f.language  && s.language)                   content += `- **Язык:** ${s.language}\n`;
+            if (f.tags      && s.tags?.length)               content += `- **Теги:** ${s.tags.join(', ')}\n`;
+            if (f.url       && s.url)                        content += `- **Ссылка:** ${s.url}\n`;
+            if (f.description && s.description)              content += `- **Описание:** ${s.description}\n`;
+
+            // Панели — красивый Markdown
+            if (f.panels && s.panels?.length) {
+                content += `\n**Панели канала:**\n\n`;
+                s.panels.forEach(p => {
+                    // Заголовок панели (если есть) как ссылка или просто текст
+                    if (p.title && p.linkURL) {
+                        content += `### [${p.title}](${p.linkURL})\n`;
+                    } else if (p.title) {
+                        content += `### ${p.title}\n`;
+                    } else if (p.linkURL) {
+                        // Панель без заголовка — только ссылка (обычно картинка-баннер)
+                        content += `### [🔗 Ссылка](${p.linkURL})\n`;
+                    }
+
+                    // Alt text (если есть)
+                    if (p.altText) content += `> ${p.altText}\n`;
+
+                    // Описание панели с сохранением переносов строк
+                    if (p.description && p.description.trim()) {
+                        const lines = p.description.split('\n');
+                        lines.forEach(line => {
+                            content += `${line}  \n`;
+                        });
+                    }
+                    content += '\n';
+                });
+            }
+
             content += '\n---\n\n';
         });
         mimeType = 'text/markdown';
@@ -123,18 +209,20 @@ function triggerDownload(data, format, filename) {
     const blob = new Blob([content], { type: mimeType });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url; a.download = filename;
-    document.body.appendChild(a); a.click();
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
     setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 500);
 }
 
-function downloadData(data, format, tabId) {
+function downloadData(data, format, tabId, fields) {
     if (!data || data.length === 0) { setIdle(); return; }
     const filename = `twitch_streams_${Date.now()}.${format}`;
     chrome.scripting.executeScript({
         target: { tabId },
         func: triggerDownload,
-        args: [data, format, filename]
+        args: [data, format, filename, fields]
     }).catch(e => console.error("Download inject error:", e));
 }
 
@@ -208,32 +296,47 @@ async function collectStreams(slug, options, tabId) {
         }
         emptyStreak = 0;
 
+        // Сначала собираем все узлы из этой страницы
+        const batchNodes = [];
         for (const edge of edges) {
-            if (collected.size >= maxStreams || _shouldStop || _shouldFinish) break;
+            if (collected.size + batchNodes.length >= maxStreams || _shouldStop || _shouldFinish) break;
             const node = edge.node;
-            
-            // Если трансляция дублируется, просто пропускаем её, но цикл НЕ обрываем!
             if (!node || collected.has(node.id)) continue;
+            batchNodes.push(node);
+        }
 
-            const s = {};
-            if (options.fields.channel)     s.channel     = node.broadcaster?.displayName || node.broadcaster?.login || "";
-            if (options.fields.category)    s.category    = node.game?.displayName || node.game?.name || slug;
-            if (options.fields.tags)        s.tags        = node.freeformTags?.map(t => t.name) ?? [];
-            
-            // ИЗМЕНЕНО: теперь зрители - это чистое число, без строк и форматирования
-            if (options.fields.viewers)     s.viewers     = node.viewersCount || 0;
-            
-            if (options.fields.title)       s.title       = node.title || "";
-            if (options.fields.url)         s.url         = `https://www.twitch.tv/${node.broadcaster?.login || ""}`;
-            if (options.fields.followers)   s.followers   = node.broadcaster?.followers?.totalCount || 0;
-            if (options.fields.language) {
-                s.language = isAll
-                    ? (node.freeformTags?.[0]?.name ?? "unknown")
-                    : options.langFilter.map(l => l.toUpperCase()).join(', ');
+        // Если нужны панели — запрашиваем пакетом
+        let panelsMap = {};
+        if (options.fields.panels && batchNodes.length > 0) {
+            const userIds = batchNodes.map(n => n.broadcaster?.id).filter(Boolean);
+            // Разбиваем на батчи по 20 (Twitch ограничивает)
+            const BATCH = 20;
+            for (let bi = 0; bi < userIds.length; bi += BATCH) {
+                const chunk = userIds.slice(bi, bi + BATCH);
+                const chunkMap = await fetchPanelsForUsers(chunk);
+                Object.assign(panelsMap, chunkMap);
             }
-            
-            // ИЗМЕНЕНО: теперь забираем реальное описание канала из broadcaster.description
-            if (options.fields.description) s.description = node.broadcaster?.description || "";
+        }
+
+        for (const node of batchNodes) {
+            // Всегда собираем ВСЕ базовые поля — фильтрация будет при скачивании
+            const s = {};
+            s.title       = node.title || "";
+            s.channel     = node.broadcaster?.displayName || node.broadcaster?.login || "";
+            s.category    = node.game?.displayName || node.game?.name || slug;
+            s.viewers     = node.viewersCount || 0;
+            s.followers   = node.broadcaster?.followers?.totalCount || 0;
+            s.language    = isAll
+                ? (node.freeformTags?.[0]?.name ?? "unknown")
+                : options.langFilter.map(l => l.toUpperCase()).join(', ');
+            s.tags        = node.freeformTags?.map(t => t.name) ?? [];
+            s.url         = `https://www.twitch.tv/${node.broadcaster?.login || ""}`;
+            s.description = node.broadcaster?.description || "";
+
+            // Панели — только если запрашивали
+            if (options.fields.panels) {
+                s.panels = panelsMap[node.broadcaster?.id] || [];
+            }
 
             collected.set(node.id, s);
         }
@@ -307,9 +410,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.action === 'download_last_data') {
         chrome.storage.local.get(['scrapedData', 'scrapeMeta'], (res) => {
             if (res.scrapedData && res.scrapeMeta) {
-                // Если popup прислал новый формат — используем его, иначе берём старый из storage
                 const format = message.format || res.scrapeMeta.format;
-                downloadData(res.scrapedData, format, res.scrapeMeta.tabId);
+                // fields берём из сообщения popup (текущее состояние чекбоксов)
+                const fields = message.fields || null;
+                downloadData(res.scrapedData, format, res.scrapeMeta.tabId, fields);
             }
         });
         sendResponse({ ok: true });

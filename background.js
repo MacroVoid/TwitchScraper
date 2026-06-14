@@ -395,6 +395,7 @@ async function collectStreams(slug, options, tabId) {
 
     const collected = new Map();
     let cursor = null;
+    let lastItemId = null;
     let emptyStreak = 0;
 
     setState({ phase: 'running', collected: 0, target: options.maxStreams || 0, error: null, tabId, format: options.format });
@@ -541,11 +542,16 @@ async function collectStreams(slug, options, tabId) {
         if (!hasNextPage || edges.length === 0) break;
 
         const nextCursor = edges[edges.length - 1].cursor;
+        const nextLastItemId = edges[edges.length - 1].node?.id || null;
         
-        // Защита от бесконечного цикла: если сервер намертво завис и отдает один и тот же курсор
-        if (cursor === nextCursor) break; 
+        // Защита от бесконечного цикла: если сервер намертво завис и отдает один и тот же курсор с тем же последним элементом
+        if (cursor === nextCursor && lastItemId === nextLastItemId) {
+            addLog(`Прерываем сбор: обнаружен бесконечный цикл (тот же курсор и ID последнего элемента).`);
+            break;
+        }
         
         cursor = nextCursor;
+        lastItemId = nextLastItemId;
         await new Promise(r => setTimeout(r, 150));
     }
 

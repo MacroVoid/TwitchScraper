@@ -512,33 +512,44 @@
     input[type="number"]::-webkit-outer-spin-button {
       -webkit-appearance: none;
       margin: 0;
+    }
+
     /* ===== LANGUAGE MENU ===== */
     .lang-dropdown {
       position: absolute;
-      top: 50px;
-      left: 20px;
+      top: calc(100% + 8px);
+      left: 0;
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: 8px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.6);
       z-index: 100;
       display: none;
       flex-direction: column;
-      overflow: hidden;
+      gap: 2px;
+      padding: 6px;
+      min-width: 140px;
     }
     .lang-dropdown.show {
       display: flex;
     }
     .lang-option {
-      padding: 8px 16px;
+      padding: 8px 12px;
       cursor: pointer;
       font-size: 13px;
-      transition: background 0.2s;
+      color: var(--text);
+      border-radius: 5px;
+      transition: background 0.2s, color 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
     .lang-option:hover {
-      background: var(--surface-light);
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--primary-hover);
     }
     .lang-option.active {
+      background: rgba(145, 70, 255, 0.15);
       color: var(--primary-hover);
       font-weight: 600;
     }
@@ -546,16 +557,18 @@
 </head>
 
 <body>
-  <div class="header" style="position: relative;">
+  <div class="header">
     <div style="display: flex; align-items: center; gap: 10px;">
-      <button id="ui_lang_btn" class="header-btn" title="Language">
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-languages-icon lucide-languages"><path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/></svg>
-      </button>
-      <h2 data-i18n="app_title">Twitch Scraper</h2>
-      <div id="ui_lang_menu" class="lang-dropdown">
-        <div class="lang-option" data-lang="ru">Русский</div>
-        <div class="lang-option" data-lang="en">English</div>
+      <div style="position: relative;">
+        <button id="ui_lang_btn" class="header-btn" title="Language">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-languages-icon lucide-languages"><path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/></svg>
+        </button>
+        <div id="ui_lang_menu" class="lang-dropdown">
+          <div class="lang-option" data-lang="ru">🇷🇺 Русский</div>
+          <div class="lang-option" data-lang="en">🇬🇧 English</div>
+        </div>
       </div>
+      <h2 data-i18n="app_title">Twitch Scraper</h2>
     </div>
     <button id="debug_toggle_btn" class="header-btn" data-i18n-title="btn_debug_title" title="Панель отладки">
       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"

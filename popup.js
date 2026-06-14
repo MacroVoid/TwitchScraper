@@ -108,6 +108,7 @@ function saveUISettings() {
         cb_subonly:   document.getElementById('cb_subonly').checked,
         max_streams:  document.getElementById('max_streams').value,
         format:       document.querySelector('input[name="format"]:checked').value,
+        sort_dir:     document.querySelector('input[name="sort_dir"]:checked').value,
         lang_filter:  Array.from(document.querySelectorAll('input[name="lang_checkbox"]:checked')).map(cb => cb.value)
     };
     chrome.storage.local.set({ uiSettings: settings });
@@ -133,6 +134,10 @@ function loadUISettings() {
             
             if (s.format !== undefined) {
                 const rb = document.querySelector(`input[name="format"][value="${s.format}"]`);
+                if (rb) rb.checked = true;
+            }
+            if (s.sort_dir !== undefined) {
+                const rb = document.querySelector(`input[name="sort_dir"][value="${s.sort_dir}"]`);
                 if (rb) rb.checked = true;
             }
             if (s.lang_filter && s.lang_filter.length > 0) {
@@ -367,7 +372,8 @@ collectBtn.addEventListener('click', async () => {
         langFilter:  selectedLangs.length > 0 ? selectedLangs : ['all'],
         subOnly:     document.getElementById('cb_subonly').checked,
         maxStreams:  parseInt(document.getElementById('max_streams').value) || 0,
-        format:      document.querySelector('input[name="format"]:checked').value
+        format:      document.querySelector('input[name="format"]:checked').value,
+        sortDir:     document.querySelector('input[name="sort_dir"]:checked').value
     };
 
     // Сбрасываем кнопки управления перед стартом
@@ -406,6 +412,7 @@ cancelEnrichBtn.addEventListener('click', () => {
 // ─── Кнопки ФИНАЛА (Скачать и Сбросить) ───────────────────────────────────
 downloadBtn.addEventListener('click', () => {
     const currentFormat = document.querySelector('input[name="format"]:checked').value;
+    const currentSort = document.querySelector('input[name="sort_dir"]:checked').value;
     // Собираем текущее состояние чекбоксов для фильтрации полей при скачивании
     const currentFields = {
         title:        document.getElementById('cb_title').checked,
@@ -420,7 +427,7 @@ downloadBtn.addEventListener('click', () => {
         social:       document.getElementById('cb_social').checked,
         panels:       document.getElementById('cb_panels').checked
     };
-    chrome.runtime.sendMessage({ action: 'download_last_data', format: currentFormat, fields: currentFields });
+    chrome.runtime.sendMessage({ action: 'download_last_data', format: currentFormat, fields: currentFields, sortDir: currentSort });
 });
 
 resetBtn.addEventListener('click', () => {
@@ -449,6 +456,8 @@ defaultSettingsBtn.addEventListener('click', () => {
     document.getElementById('max_streams').value = "0";
     const jsonRadio = document.querySelector('input[name="format"][value="json"]');
     if (jsonRadio) jsonRadio.checked = true;
+    const descRadio = document.querySelector('input[name="sort_dir"][value="desc"]');
+    if (descRadio) descRadio.checked = true;
 
     saveUISettings();
 });
@@ -477,6 +486,8 @@ fullResetBtn.addEventListener('click', () => {
             document.getElementById('max_streams').value = "0";
             const jsonRadio = document.querySelector('input[name="format"][value="json"]');
             if (jsonRadio) jsonRadio.checked = true;
+            const descRadio = document.querySelector('input[name="sort_dir"][value="desc"]');
+            if (descRadio) descRadio.checked = true;
 
             saveUISettings();
             showPill('done', '✓ Сброшено');

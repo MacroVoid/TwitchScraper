@@ -95,10 +95,11 @@ function setIdle() {
 }
 
 // ─── Вспомогательные ──────────────────────────────────────────────────────
-function buildGQLBody(slug, langFilter, cursor, subOnly) {
+function buildGQLBody(slug, langFilter, cursor, subOnly, sortDir) {
     const langString = langFilter.join(', '); 
     // Если галочка стоит, добавляем параметр, иначе оставляем пустым
     const restrictedClause = subOnly ? 'includeRestricted: [SUB_ONLY_LIVE]' : '';
+    const sortVal = sortDir === 'asc' ? 'VIEWER_COUNT_ASC' : 'VIEWER_COUNT';
     
     return JSON.stringify({
         query: `
@@ -108,7 +109,7 @@ function buildGQLBody(slug, langFilter, cursor, subOnly) {
                     first: 100
                     after: $cursor
                     options: {
-                        sort: VIEWER_COUNT
+                        sort: ${sortVal}
                         broadcasterLanguages: [${langString}]
                         ${restrictedClause}
                         recommendationsContext: { platform: "web" }
@@ -218,7 +219,7 @@ async function fetchSocialMediasBatch(logins) {
 }
 
 // ─── Инжект скачивания в Twitch-вкладку ──────────────────────────────────────
-function triggerDownload(data, format, filename, fields) {
+function triggerDownload(data, format, filename, fields, sortDir) {
     // fields — объект с булевыми флагами (что показывать)
     // Если fields не передан — показываем всё
     const f = fields || {
@@ -226,6 +227,13 @@ function triggerDownload(data, format, filename, fields) {
         followers: true, title: true, language: true, url: true,
         description: true, social: true, panels: true
     };
+
+    // Сортируем локальные данные по зрителям перед экспортом
+    data.sort((a, b) => {
+        const vA = a.viewers || 0;
+        const vB = b.viewers || 0;
+        return sortDir === 'asc' ? vA - vB : vB - vA;
+    });
 
     let content = '';
     let mimeType = '';
@@ -315,13 +323,13 @@ function triggerDownload(data, format, filename, fields) {
     setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 500);
 }
 
-function downloadData(data, format, tabId, fields) {
+function downloadData(data, format, tabId, fields, sortDir) {
     if (!data || data.length === 0) { setIdle(); return; }
     const filename = `twitch_streams_${Date.now()}.${format}`;
     chrome.scripting.executeScript({
         target: { tabId },
         func: triggerDownload,
-        args: [data, format, filename, fields]
+        args: [data, format, filename, fields, sortDir]
     }).catch(e => console.error("Download inject error:", e));
 }
 
@@ -349,8 +357,8 @@ async function collectStreams(slug, options, tabId) {
     while (collected.size < maxStreams && !_shouldStop && !_shouldFinish) {
         let json;
         try {
-            const body = buildGQLBody(slug, langFilter, cursor, options.subOnly);
-            addLog(`Запрос GQL (курсор: ${cursor || 'нет'}). Активные заголовки: ${JSON.stringify(Object.keys(twitchHeaders))}`);
+            const body = buildGQLBody(slug, langFilter, cursor, options.subOnly, options.sortDir);
+            addLog(`Запрос GQL (курсор: ${cursor || 'нет'}, сортировка: ${options.sortDir || 'desc'}). Активные заголовки: ${JSON.stringify(Object.keys(twitchHeaders))}`);
             
             const resp = await fetch("https://gql.twitch.tv/gql", {
                 method: "POST",
@@ -515,7 +523,7 @@ async function collectStreams(slug, options, tabId) {
     chrome.storage.local.set({ 
         scrapingState: doneState, 
         scrapedData: data, 
-        scrapeMeta: { format: options.format || 'json', tabId: tabId } 
+        scrapeMeta: { format: options.format || 'json', tabId: tabId, sortDir: options.sortDir || 'desc' } 
     }, () => {
         setState(doneState);
     });
@@ -656,7 +664,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                     }
                 } else {
                     // Обогащение не требуется (уже пройдено или отменено) — скачиваем файл сразу
-                    downloadData(data, format, res.scrapeMeta.tabId, fields);
+                    const sortDir = message.sortDir || res.scrapeMeta.sortDir || 'desc';
+                    downloadData(data, format, res.scrapeMeta.tabId, fields, sortDir);
                 }
             }
         });

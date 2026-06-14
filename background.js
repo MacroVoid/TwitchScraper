@@ -1,0 +1,283 @@
+// =============================================
+// Background Service Worker
+// Делает ВСЕ GQL-запросы сам (обходит CORS).
+// Content.js нужен только для инжекта скачивания.
+// =============================================
+
+const CLIENT_ID = "kimne78kx3ncx6brgo4mv6wki5h1ko";
+let _shouldStop = false;
+let _shouldFinish = false;
+let _isRunning = false;
+
+// Оставляем старый ID как запасной (fallback) на случай, 
+// если мы захотим сделать запрос до того, как поймаем новый
+let twitchHeaders = {
+    "Client-Id": "kimne78kx3ncx6brgo4mv6wki5h1ko", 
+    "Content-Type": "application/json"
+};
+
+// Пассивно перехватываем ВСЕ важные токены
+chrome.webRequest.onSendHeaders.addListener(
+    (details) => {
+        if (details.requestHeaders) {
+            for (const header of details.requestHeaders) {
+                const name = header.name.toLowerCase();
+                
+                // Добавили 'client-id' в массив!
+                if (['client-id', 'client-integrity', 'authorization', 'x-device-id', 'client-version', 'client-session-id'].includes(name)) {
+                    twitchHeaders[header.name] = header.value;
+                }
+            }
+        }
+    },
+    { urls: ["https://gql.twitch.tv/gql"] },
+    ["requestHeaders"]
+);
+
+// ─── Инициализация ────────────────────────────────────────────────────────
+chrome.storage.local.get('scrapingState', (result) => {
+    if (!result.scrapingState) {
+        chrome.storage.local.set({ scrapingState: { phase: 'idle', collected: 0, target: 0, error: null } });
+    }
+});
+
+// ─── Вспомогательные ──────────────────────────────────────────────────────
+function setState(state) {
+    chrome.storage.local.set({ scrapingState: state });
+    chrome.runtime.sendMessage({ action: 'state_update', state }).catch(() => {});
+}
+
+function setIdle() {
+    _isRunning = false;
+    setState({ phase: 'idle', collected: 0, target: 0, error: null });
+}
+
+function buildGQLBody(slug, langFilter, cursor) {
+    const langClause = langFilter.length > 0 ? `broadcasterLanguages: [${langFilter.join(', ')}]` : '';
+    return JSON.stringify({
+        query: `
+        query DirectoryPageGame($slug: String!, $cursor: Cursor) {
+            game(name: $slug) {
+                streams(
+                    first: 100
+                    after: $cursor
+                    options: {
+                        sort: VIEWER_COUNT
+                        ${langClause}
+                        recommendationsContext: { platform: "web" }
+                        systemFilters: []
+                    }
+                ) {
+                    pageInfo { hasNextPage }
+                    edges {
+                        cursor
+                        node {
+                            id title viewersCount
+                            broadcaster { login displayName }
+                            freeformTags { name }
+                            game { name displayName }
+                        }
+                    }
+                }
+            }
+        }`,
+        variables: { slug, cursor: cursor || null }
+    });
+}
+
+// Инжект скачивания в Twitch-вкладку
+function triggerDownload(data, format, filename) {
+    let content = '';
+    let mimeType = '';
+    if (format === 'json') {
+        content = JSON.stringify(data, null, 2);
+        mimeType = 'application/json';
+    } else {
+        content = '# Собранные трансляции Twitch\n\n';
+        data.forEach((s, i) => {
+            content += `## ${i + 1}. ${s.title || '—'}\n\n`;
+            if (s.channel)      content += `- **Канал:** ${s.channel}\n`;
+            if (s.category)     content += `- **Категория:** ${s.category}\n`;
+            if (s.viewers)      content += `- **Зрители:** ${s.viewers}\n`;
+            if (s.language)     content += `- **Язык:** ${s.language}\n`;
+            if (s.tags?.length) content += `- **Теги:** ${s.tags.join(', ')}\n`;
+            if (s.url)          content += `- **Ссылка:** ${s.url}\n`;
+            content += '\n---\n\n';
+        });
+        mimeType = 'text/markdown';
+    }
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click();
+    setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 500);
+}
+
+function downloadData(data, format, tabId) {
+    if (!data || data.length === 0) { setIdle(); return; }
+    const filename = `twitch_streams_${Date.now()}.${format}`;
+    chrome.scripting.executeScript({
+        target: { tabId },
+        func: triggerDownload,
+        args: [data, format, filename]
+    }).catch(e => console.error("Download inject error:", e));
+}
+
+// ─── Основной цикл сбора ────────────────────────────────────────────────────
+async function collectStreams(slug, options, tabId) {
+    _isRunning = true;
+    _shouldStop = false;
+    _shouldFinish = false;
+
+    const maxStreams = options.maxStreams > 0 ? options.maxStreams : Infinity;
+    const isAll = options.langFilter === 'all';
+    const langFilter = isAll ? [] : [options.langFilter.toUpperCase()];
+
+    const collected = new Map();
+    let cursor = null;
+    let emptyStreak = 0;
+
+    setState({ phase: 'running', collected: 0, target: options.maxStreams || 0, error: null, tabId, format: options.format });
+
+    while (collected.size < maxStreams && !_shouldStop && !_shouldFinish) {
+        let json;
+        try {
+            const resp = await fetch("https://gql.twitch.tv/gql", {
+                method: "POST",
+                headers: twitchHeaders, // <-- ИСПОЛЬЗУЕМ ПЕРЕХВАЧЕННЫЕ ЗАГОЛОВКИ
+                body: buildGQLBody(slug, langFilter, cursor)
+            });
+            json = await resp.json();
+        } catch (e) {
+            console.error("[TwitchScraper] fetch error:", e);
+            emptyStreak++;
+            if (emptyStreak >= 3) break;
+            await new Promise(r => setTimeout(r, 800));
+            continue;
+        }
+
+        if (json.errors) {
+            console.warn("[TwitchScraper] GQL errors:", json.errors);
+            
+            // Если Twitch заблокировал запрос (токен устарел или ещё не пойман)
+            const isIntegrityError = json.errors.some(e => e.extensions?.code === 'IntegrityCheckFailed');
+            if (isIntegrityError) {
+                setState({ 
+                    phase: 'error', 
+                    collected: collected.size, 
+                    error: 'Защита Twitch заблокировала запрос. Пожалуйста, обновите страницу Twitch (клавиша F5) и запустите сбор снова.', 
+                    target: options.maxStreams || 0 
+                });
+                _isRunning = false;
+                return;
+            }
+
+            emptyStreak++;
+            if (emptyStreak >= 3) break;
+            await new Promise(r => setTimeout(r, 600));
+            continue;
+        }
+
+        // --- ВОТ ЭТА ЧАСТЬ БЫЛА УТЕРЯНА ПРИ КОПИРОВАНИИ ---
+        const streams = json.data?.game?.streams;
+        if (!streams) { emptyStreak++; if (emptyStreak >= 3) break; continue; }
+
+        const edges = streams.edges || [];
+        if (edges.length === 0) {
+            emptyStreak++;
+            if (emptyStreak >= 2) break;
+            await new Promise(r => setTimeout(r, 500));
+            continue;
+        }
+        emptyStreak = 0;
+
+        let newInBatch = 0;
+        for (const edge of edges) {
+            if (collected.size >= maxStreams || _shouldStop || _shouldFinish) break;
+            const node = edge.node;
+            if (!node || collected.has(node.id)) continue;
+
+            const s = {};
+            if (options.fields.channel)     s.channel     = node.broadcaster?.displayName || node.broadcaster?.login || "";
+            if (options.fields.category)    s.category    = node.game?.displayName || node.game?.name || slug;
+            if (options.fields.tags)        s.tags        = node.freeformTags?.map(t => t.name) ?? [];
+            if (options.fields.viewers)     s.viewers     = (node.viewersCount || 0).toLocaleString('ru-RU') + " зрителей";
+            if (options.fields.title)       s.title       = node.title || "";
+            if (options.fields.url)         s.url         = `https://www.twitch.tv/${node.broadcaster?.login || ""}`;
+            if (options.fields.language) {
+                s.language = isAll
+                    ? (node.freeformTags?.[0]?.name ?? "unknown")
+                    : options.langFilter;
+            }
+            if (options.fields.description) s.description = "Недоступно через API категорий";
+
+            collected.set(node.id, s);
+            newInBatch++;
+        }
+
+        // Прогресс
+        setState({ phase: 'running', collected: collected.size, target: options.maxStreams || 0, error: null, tabId, format: options.format });
+
+        const hasNextPage = streams.pageInfo?.hasNextPage;
+        if (!hasNextPage || edges.length === 0 || newInBatch === 0) break;
+
+        cursor = edges[edges.length - 1].cursor;
+        await new Promise(r => setTimeout(r, 150));
+    } // <-- ЗАКРЫВАЮЩАЯ СКОБКА ЦИКЛА WHILE, КОТОРАЯ ПРОПАЛА
+
+    _isRunning = false;
+
+    // Если нажали "Стоп" — просто сбрасываем
+    if (_shouldStop) { setIdle(); return; }
+
+    // Иначе (финиш или естественный конец) — скачиваем
+    const data = Array.from(collected.values());
+    const doneState = { phase: 'done', collected: data.length, target: options.maxStreams || 0, error: null };
+    setState(doneState);
+
+    downloadData(data, options.format || 'json', tabId);
+    setTimeout(setIdle, 4000);
+}
+
+// ─── Обработчик сообщений ─────────────────────────────────────────────────
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+
+    if (message.action === 'start_collection') {
+        if (_isRunning) { sendResponse({ ok: false, reason: 'already running' }); return; }
+        const { tabId, options } = message;
+        // Получаем slug из URL вкладки — не нужен content.js!
+        chrome.tabs.get(tabId, (tab) => {
+            const match = tab?.url?.match(/\/directory\/category\/([^/]+)/);
+            if (!match) {
+                setState({ phase: 'error', collected: 0, error: 'Откройте страницу категории Twitch', target: 0 });
+                return;
+            }
+            const slug = decodeURIComponent(match[1]);
+            collectStreams(slug, options, tabId);
+        });
+        sendResponse({ ok: true });
+        return true;
+    }
+
+    if (message.action === 'stop_collection') {
+        _shouldStop = true;
+        if (!_isRunning) setIdle(); // На случай если уже не работает
+        sendResponse({ ok: true });
+        return true;
+    }
+
+    if (message.action === 'finish_collection') {
+        _shouldFinish = true;
+        sendResponse({ ok: true });
+        return true;
+    }
+
+    if (message.action === 'reset_state') {
+        if (!_isRunning) setIdle();
+        sendResponse({ ok: true });
+        return true;
+    }
+
+    return true;
+});

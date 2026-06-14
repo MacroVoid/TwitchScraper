@@ -1,0 +1,32 @@
+{
+  "manifest_version": 3,
+  "name": "Twitch Stream Scraper",
+  "version": "2.0",
+  "description": "Извлекает данные о трансляциях со страниц категорий Twitch.",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "downloads",
+    "storage",
+    "storage",
+    "scripting",
+    "webRequest"
+  ],
+  "host_permissions": [
+    "https://*.twitch.tv/*",
+    "https://gql.twitch.tv/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Парсер Twitch"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.twitch.tv/*"],
+      "js": ["content.js"]
+    }
+  ]
+}

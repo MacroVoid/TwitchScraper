@@ -8,6 +8,8 @@ const CLIENT_ID = "kimne78kx3ncx6brgo4mv6wki5h1ko";
 let _shouldStop = false;
 let _shouldFinish = false;
 let _isRunning = false;
+let _shouldStopEnrich = false;
+let _isEnriching = false;
 
 // Оставляем старый ID как запасной (fallback) на случай, 
 // если мы захотим сделать запрос до того, как поймаем новый
@@ -445,44 +447,61 @@ async function collectStreams(slug, options, tabId) {
     });
 }
 
-// ─── Обогащение уже собранных данных ───────────────────────────────
+// ─── Обогащение уже собранных данных с прогрессом ────────────────────────
 async function enrichData(data, fields) {
     if (!data || !fields) return data;
+    _isEnriching = true;
+    _shouldStopEnrich = false;
+    const totalStreams = data.length;
 
-    // Соц. сети: запрашиваем для тех, у кого нет данных
+    // Функция прерывания: сохраняем что есть и возвращаем null
+    function stopAndRestore() {
+        _isEnriching = false;
+        chrome.storage.local.set({ scrapedData: data });
+        const doneState = { phase: 'done', collected: totalStreams, target: 0, error: null };
+        chrome.storage.local.set({ scrapingState: doneState });
+        setState(doneState);
+    }
+
+    // Соц. сети
     if (fields.social) {
         const missing = data.filter(s => s.social === undefined && s._login);
-        if (missing.length > 0) {
-            const logins = missing.map(s => s._login);
-            const socialMap = await fetchSocialMediasBatch(logins);
-            data.forEach(s => {
-                if (s.social === undefined && s._login) {
-                    s.social = socialMap[s._login] || [];
-                }
-            });
+        const total = missing.length;
+        let done = 0;
+        const CHUNK = 30;
+
+        for (let i = 0; i < missing.length; i += CHUNK) {
+            if (_shouldStopEnrich) { stopAndRestore(); return null; }
+            const chunk = missing.slice(i, i + CHUNK);
+            const socialMap = await fetchSocialMediasBatch(chunk.map(s => s._login));
+            chunk.forEach(s => { s.social = socialMap[s._login] || []; });
+            done += chunk.length;
+            chrome.storage.local.set({ scrapedData: data });
+            setState({ phase: 'enriching', enrichStep: 'social', enrichDone: done, enrichTotal: total, collected: totalStreams });
         }
     }
 
-    // Панели: запрашиваем для тех, у кого нет данных
+    if (_shouldStopEnrich) { stopAndRestore(); return null; }
+
+    // Панели
     if (fields.panels) {
         const missing = data.filter(s => s.panels === undefined && s._userId);
-        if (missing.length > 0) {
-            const userIds = missing.map(s => s._userId);
-            const BATCH = 20;
-            const panelsMap = {};
-            for (let bi = 0; bi < userIds.length; bi += BATCH) {
-                const chunk = userIds.slice(bi, bi + BATCH);
-                const chunkMap = await fetchPanelsForUsers(chunk);
-                Object.assign(panelsMap, chunkMap);
-            }
-            data.forEach(s => {
-                if (s.panels === undefined && s._userId) {
-                    s.panels = panelsMap[s._userId] || [];
-                }
-            });
+        const total = missing.length;
+        let done = 0;
+        const BATCH = 20;
+
+        for (let bi = 0; bi < missing.length; bi += BATCH) {
+            if (_shouldStopEnrich) { stopAndRestore(); return null; }
+            const chunk = missing.slice(bi, bi + BATCH);
+            const panelsMap = await fetchPanelsForUsers(chunk.map(s => s._userId));
+            chunk.forEach(s => { s.panels = panelsMap[s._userId] || []; });
+            done += chunk.length;
+            chrome.storage.local.set({ scrapedData: data });
+            setState({ phase: 'enriching', enrichStep: 'panels', enrichDone: done, enrichTotal: total, collected: totalStreams });
         }
     }
 
+    _isEnriching = false;
     return data;
 }
 
@@ -524,24 +543,28 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             if (res.scrapedData && res.scrapeMeta) {
                 const format = message.format || res.scrapeMeta.format;
                 const fields = message.fields || null;
-
                 let data = res.scrapedData;
 
-                // Если пользователь хочет соц. сети или панели, но они не были собраны — запрашиваем
                 const needEnrich = fields && (
-                    (fields.social  && data.some(s => s.social  === undefined)) ||
-                    (fields.panels  && data.some(s => s.panels  === undefined))
+                    (fields.social && data.some(s => s.social === undefined)) ||
+                    (fields.panels && data.some(s => s.panels === undefined))
                 );
 
                 if (needEnrich) {
-                    data = await enrichData([...data], fields);
-                    // Сохраняем обогащённые данные обратно в storage
-                    chrome.storage.local.set({ scrapedData: data });
+                    const enriched = await enrichData(data, fields);
+                    if (enriched === null) return; // остановлено пользователем
+                    data = enriched;
                 }
 
                 downloadData(data, format, res.scrapeMeta.tabId, fields);
             }
         });
+        sendResponse({ ok: true });
+        return true;
+    }
+
+    if (message.action === 'stop_enrich') {
+        _shouldStopEnrich = true;
         sendResponse({ ok: true });
         return true;
     }

@@ -55,6 +55,8 @@ const langList        = document.getElementById('lang_list');
 const doneButtons     = document.getElementById('done-buttons');
 const downloadBtn     = document.getElementById('download_btn');
 const resetBtn        = document.getElementById('reset_btn');
+const enrichButtons   = document.getElementById('enrich-buttons');
+const stopEnrichBtn   = document.getElementById('stop_enrich_btn');
 const defaultSettingsBtn = document.getElementById('default_settings_btn');
 
 // Заполняем список языков удобными чекбоксами
@@ -168,7 +170,8 @@ function applyState(state) {
     if (phase === 'running') {
         showProgress(true);
         showActionButtons(true);
-        doneButtons.style.display = 'none'; // Скрываем новые кнопки
+        doneButtons.style.display = 'none';
+        enrichButtons.style.display = 'none';
         collectBtn.style.display = 'none';
         progressLabel.textContent = 'Идёт сбор...';
         progressCount.textContent = (collected || 0).toLocaleString('ru-RU');
@@ -187,10 +190,40 @@ function applyState(state) {
         }
         showPill('running', '⏳ Идёт сбор');
 
+    } else if (phase === 'enriching') {
+        // Фаза обогащения: соц. сети / панели
+        showProgress(true);
+        showActionButtons(false);
+        doneButtons.style.display = 'none';
+        enrichButtons.style.display = 'block';
+        collectBtn.style.display = 'none';
+        stopEnrichBtn.disabled = false;
+
+        const stepLabel = state.enrichStep === 'social' ? 'Соц. сети' : 'Панели';
+        const done  = state.enrichDone  || 0;
+        const total = state.enrichTotal || 0;
+
+        progressLabel.textContent = `Сбор: ${stepLabel}...`;
+        progressCount.textContent = `${done.toLocaleString('ru-RU')} / ${total.toLocaleString('ru-RU')}`;
+
+        if (total > 0) {
+            const pct = Math.min(100, Math.round(done / total * 100));
+            progressBar.classList.remove('indeterminate', 'done');
+            progressBar.style.width = pct + '%';
+            progressSub.textContent = `${pct}% — ${done.toLocaleString('ru-RU')} из ${total.toLocaleString('ru-RU')} каналов`;
+        } else {
+            progressBar.classList.add('indeterminate');
+            progressBar.classList.remove('done');
+            progressBar.style.width = '100%';
+            progressSub.textContent = 'Подготовка...';
+        }
+        showPill('running', `⏳ ${stepLabel}`);
+
     } else if (phase === 'done') {
         showProgress(true);
         showActionButtons(false);
-        doneButtons.style.display = 'flex'; // Показываем новые кнопки
+        doneButtons.style.display = 'flex';
+        enrichButtons.style.display = 'none';
         collectBtn.style.display = 'none';
         progressLabel.textContent = 'Сбор завершён!';
         progressCount.textContent = (collected || 0).toLocaleString('ru-RU');
@@ -203,7 +236,8 @@ function applyState(state) {
     } else if (phase === 'error') {
         showProgress(false);
         showActionButtons(false);
-        doneButtons.style.display = 'none'; // Скрываем новые кнопки
+        doneButtons.style.display = 'none';
+        enrichButtons.style.display = 'none';
         collectBtn.style.display = 'flex';
         showPill('error', '✗ ' + (error || 'Ошибка'));
 
@@ -232,7 +266,8 @@ function showPill(type, text) {
 function resetToIdle() {
     showProgress(false);
     showActionButtons(false);
-    doneButtons.style.display = 'none'; // Добавить эту строку
+    doneButtons.style.display = 'none';
+    enrichButtons.style.display = 'none';
     collectBtn.style.display = 'flex';
     collectBtn.disabled = false;
     collectBtn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Собрать и скачать`;
@@ -302,6 +337,14 @@ collectBtn.addEventListener('click', async () => {
     applyState({ phase: 'running', collected: 0, target: options.maxStreams, error: null });
 
     chrome.runtime.sendMessage({ action: 'start_collection', tabId: tab.id, options });
+});
+
+// ─── Кнопка ОСТАНОВИТЬ ОБОГАЩЕНИЕ ─────────────────────────────────
+stopEnrichBtn.addEventListener('click', () => {
+    stopEnrichBtn.disabled = true;
+    stopEnrichBtn.textContent = 'Сохранение...';
+    showPill('running', '⏸ Останавливаем...');
+    chrome.runtime.sendMessage({ action: 'stop_enrich' });
 });
 
 // ─── Кнопки ФИНАЛА (Скачать и Сбросить) ───────────────────────────────────

@@ -231,13 +231,16 @@ async function fetchPanelsForUsers(userIds) {
     return result;
 }
 
-// ─── Запрос соц. сетей канала ─────────────────────────────────────────────
-async function fetchSocialMediasBatch(logins) {
+// ─── Запрос доп. инфы (соцсети и аптайм) ──────────────────────────────────
+async function fetchChannelExtrasBatch(logins) {
     if (!logins || logins.length === 0) return {};
     const query = `
-    query GetChannelSocial($login: String!) {
+    query GetChannelExtras($login: String!) {
       user(login: $login) {
         login
+        stream {
+          createdAt
+        }
         channel {
           socialMedias {
             name
@@ -248,7 +251,6 @@ async function fetchSocialMediasBatch(logins) {
       }
     }`;
     const result = {};
-    // Батчами по 30 логинов за один fetch
     const CHUNK = 30;
     for (let i = 0; i < logins.length; i += CHUNK) {
         const chunk = logins.slice(i, i + CHUNK);
@@ -263,15 +265,20 @@ async function fetchSocialMediasBatch(logins) {
             const items = Array.isArray(arr) ? arr : [arr];
             items.forEach((item, idx) => {
                 const login = chunk[idx];
-                const socials = item?.data?.user?.channel?.socialMedias;
-                if (login && Array.isArray(socials)) {
-                    result[login] = socials
-                        .filter(s => s.url)
-                        .map(s => ({ name: s.name || null, title: s.title || null, url: s.url }));
+                const userNode = item?.data?.user;
+                if (login && userNode) {
+                    const socials = userNode.channel?.socialMedias;
+                    const parsedSocials = Array.isArray(socials) 
+                        ? socials.filter(s => s.url).map(s => ({ name: s.name || null, title: s.title || null, url: s.url }))
+                        : [];
+                    result[login] = { 
+                        socials: parsedSocials,
+                        createdAt: userNode.stream?.createdAt || null
+                    };
                 }
             });
         } catch (e) {
-            console.error("[TwitchScraper] social fetch error:", e);
+            console.error("[TwitchScraper] extras fetch error:", e);
         }
     }
     return result;
@@ -284,7 +291,7 @@ function triggerDownload(data, format, filename, fields, sortDir) {
     const f = fields || {
         channel: true, category: true, tags: true, viewers: true,
         followers: true, title: true, language: true, url: true,
-        description: true, social: true, panels: true
+        description: true, social: true, panels: true, uptime: true
     };
 
     // Сортируем локальные данные по зрителям перед экспортом
@@ -310,6 +317,7 @@ function triggerDownload(data, format, filename, fields, sortDir) {
             if (f.tags        && s.tags        !== undefined) out.tags        = s.tags;
             if (f.url         && s.url         !== undefined) out.url         = s.url;
             if (f.description && s.description !== undefined) out.description = s.description;
+            if (f.uptime      && s.uptime      !== undefined) out.uptime      = s.uptime;
             if (f.social      && s.social      && s.social.length > 0) out.social      = s.social;
             if (f.panels      && s.panels      && s.panels.length > 0) out.panels      = s.panels;
             return out;
@@ -330,6 +338,13 @@ function triggerDownload(data, format, filename, fields, sortDir) {
             if (f.url       && s.url)                        content += `- **Ссылка:** ${s.url}\n`;
             if (f.description && s.description) {
                 content += `- **Описание:**\n<details>\n<summary>Развернуть описание</summary>\n<blockquote>\n${s.description}\n</blockquote>\n</details>\n`;
+            }
+            if (f.uptime && s.uptime) {
+                const start = new Date(s.uptime);
+                const diffMs = Date.now() - start.getTime();
+                const hrs = Math.floor(diffMs / 3600000);
+                const mins = Math.floor((diffMs % 3600000) / 60000);
+                content += `- **Аптайм:** ${hrs}h ${mins}m (Started at ${start.toLocaleTimeString()})\n`;
             }
 
             // Соц. сети
@@ -519,11 +534,11 @@ async function collectStreams(slug, options, tabId) {
             }
         }
 
-        // Если нужны соц. сети — запрашиваем пакетом по логинам
-        let socialMap = {};
-        if (options.fields.social && batchNodes.length > 0) {
+        // Если нужны соц. сети ИЛИ аптайм — запрашиваем пакетом по логинам
+        let extrasMap = {};
+        if ((options.fields.social || options.fields.uptime) && batchNodes.length > 0) {
             const logins = batchNodes.map(n => n.broadcaster?.login).filter(Boolean);
-            socialMap = await fetchSocialMediasBatch(logins);
+            extrasMap = await fetchChannelExtrasBatch(logins);
         }
 
         for (const node of batchNodes) {
@@ -550,9 +565,11 @@ async function collectStreams(slug, options, tabId) {
                 s.panels = panelsMap[node.broadcaster?.id] || [];
             }
 
-            // Соц. сети — только если запрашивали
-            if (options.fields.social) {
-                s.social = socialMap[node.broadcaster?.login] || [];
+            // Соц. сети и Аптайм — только если запрашивали
+            if (options.fields.social || options.fields.uptime) {
+                const ext = extrasMap[node.broadcaster?.login] || { socials: [], createdAt: null };
+                if (options.fields.social) s.social = ext.socials;
+                if (options.fields.uptime) s.uptime = ext.createdAt;
             }
 
             collected.set(node.id, s);
@@ -654,7 +671,7 @@ async function enrichData(data, fields) {
 
     if (_shouldStopEnrich) {
         const panelsMissing = fields.panels ? data.filter(s => s.panels === undefined && s._userId).length : 0;
-        stopAndRestore(fields.panels ? 'panels' : 'social', 0, panelsMissing);
+        stopAndRestore(fields.panels ? 'panels' : 'extras', 0, panelsMissing);
         return null;
     }
 
@@ -726,6 +743,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
                 const needEnrich = fields && (
                     (fields.social && data.some(s => s.social === undefined)) ||
+                    (fields.uptime && data.some(s => s.uptime === undefined)) ||
                     (fields.panels && data.some(s => s.panels === undefined))
                 );
 
@@ -758,7 +776,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.action === 'resume_enrich') {
         chrome.storage.local.get(['scrapedData', 'scrapingState', 'scrapeMeta'], async (res) => {
             if (res.scrapedData && res.scrapingState) {
-                const fields = res.scrapingState.enrichFields || { social: true, panels: true };
+                const fields = res.scrapingState.enrichFields || { social: true, uptime: true, panels: true };
                 let data = res.scrapedData;
 
                 const enriched = await enrichData(data, fields);
@@ -778,12 +796,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             if (res.scrapedData) {
                 const data = res.scrapedData;
                 const state = res.scrapingState || {};
-                const fields = state.enrichFields || { social: true, panels: true };
+                const fields = state.enrichFields || { social: true, uptime: true, panels: true };
 
                 // Заполняем необработанные поля null, чтобы они не обогащались и не попадали в файл
                 data.forEach(s => {
                     if (fields.social && s.social === undefined) {
                         s.social = null;
+                    }
+                    if (fields.uptime && s.uptime === undefined) {
+                        s.uptime = null;
                     }
                     if (fields.panels && s.panels === undefined) {
                         s.panels = null;

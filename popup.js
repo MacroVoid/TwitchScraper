@@ -111,6 +111,7 @@ function saveUISettings() {
         cb_desc: document.getElementById('cb_desc').checked,
         cb_social: document.getElementById('cb_social').checked,
         cb_panels: document.getElementById('cb_panels').checked,
+        cb_uptime: document.getElementById('cb_uptime').checked,
         cb_subonly: document.getElementById('cb_subonly').checked,
         max_streams: document.getElementById('max_streams').value,
         format: document.querySelector('input[name="format"]:checked').value,
@@ -135,6 +136,7 @@ function loadUISettings() {
             if (s.cb_desc !== undefined) document.getElementById('cb_desc').checked = s.cb_desc;
             if (s.cb_social !== undefined) document.getElementById('cb_social').checked = s.cb_social;
             if (s.cb_panels !== undefined) document.getElementById('cb_panels').checked = s.cb_panels;
+            if (s.cb_uptime !== undefined) document.getElementById('cb_uptime').checked = s.cb_uptime;
             if (s.cb_subonly !== undefined) document.getElementById('cb_subonly').checked = s.cb_subonly;
             if (s.max_streams !== undefined) document.getElementById('max_streams').value = s.max_streams;
 
@@ -380,7 +382,8 @@ collectBtn.addEventListener('click', async () => {
             url: document.getElementById('cb_url').checked,
             description: document.getElementById('cb_desc').checked,
             social: document.getElementById('cb_social').checked,
-            panels: document.getElementById('cb_panels').checked
+            panels: document.getElementById('cb_panels').checked,
+            uptime: document.getElementById('cb_uptime').checked
         },
         langFilter: selectedLangs.length > 0 ? selectedLangs : ['all'],
         subOnly: document.getElementById('cb_subonly').checked,
@@ -438,7 +441,8 @@ downloadBtn.addEventListener('click', () => {
         url: document.getElementById('cb_url').checked,
         description: document.getElementById('cb_desc').checked,
         social: document.getElementById('cb_social').checked,
-        panels: document.getElementById('cb_panels').checked
+        panels: document.getElementById('cb_panels').checked,
+        uptime: document.getElementById('cb_uptime').checked
     };
     chrome.runtime.sendMessage({ action: 'download_last_data', format: currentFormat, fields: currentFields, sortDir: currentSort });
 });
@@ -460,6 +464,7 @@ defaultSettingsBtn.addEventListener('click', () => {
     document.getElementById('cb_desc').checked = true;
     document.getElementById('cb_social').checked = true;
     document.getElementById('cb_panels').checked = false; // медленный запрос
+    document.getElementById('cb_uptime').checked = false; // не включен по умолчанию
     document.getElementById('cb_subonly').checked = false;
 
     document.querySelectorAll('input[name="lang_checkbox"]').forEach(cb => {

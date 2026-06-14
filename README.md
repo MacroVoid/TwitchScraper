@@ -1,6 +1,6 @@
 # Twitch Scraper
 
-> 🇷🇺 [Русская версия README](README.ru.md) | 📘 [Technical Documentation](docs/TechSpecs.md)
+> 🇷🇺 [Русская версия README](README.ru.md) | 📘 [Technical Documentation](https://github.com/MacroVoid/TwitchScraper/wiki)
 
 **Twitch Scraper** is a powerful and lightweight browser extension (Manifest V3) that allows you to easily extract live stream data from any category on Twitch.tv and export it into structured JSON or Markdown files.
 
@@ -33,7 +33,8 @@
 ## 📖 Technical Documentation
 
 If you are interested in how the extension bypasses CORS, handles GraphQL batching, and manages memory limits via background service workers, please refer to our detailed technical wiki:
-👉 **[Read the Technical Specs](docs/TechSpecs.md)**
+
+- **[Wiki](https://github.com/MacroVoid/TwitchScraper/wiki)**
 
 ## 📄 License
 

@@ -339,7 +339,7 @@ defaultSettingsBtn.addEventListener('click', () => {
     document.getElementById('cb_language').checked = true;
     document.getElementById('cb_url').checked = true;
     document.getElementById('cb_desc').checked     = true;
-    document.getElementById('cb_social').checked   = false; // медленный запрос
+    document.getElementById('cb_social').checked   = true;
     document.getElementById('cb_panels').checked   = false; // медленный запрос
     document.getElementById('cb_subonly').checked  = false;
 

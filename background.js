@@ -396,6 +396,10 @@ async function collectStreams(slug, options, tabId) {
             s.url         = `https://www.twitch.tv/${node.broadcaster?.login || ""}`;
             s.description = node.broadcaster?.description || "";
 
+            // Служебные поля для последующего обогащения (не попадут в экспорт)
+            s._login  = node.broadcaster?.login  || "";
+            s._userId = node.broadcaster?.id     || "";
+
             // Панели — только если запрашивали
             if (options.fields.panels) {
                 s.panels = panelsMap[node.broadcaster?.id] || [];
@@ -441,6 +445,46 @@ async function collectStreams(slug, options, tabId) {
     });
 }
 
+// ─── Обогащение уже собранных данных ───────────────────────────────
+async function enrichData(data, fields) {
+    if (!data || !fields) return data;
+
+    // Соц. сети: запрашиваем для тех, у кого нет данных
+    if (fields.social) {
+        const missing = data.filter(s => s.social === undefined && s._login);
+        if (missing.length > 0) {
+            const logins = missing.map(s => s._login);
+            const socialMap = await fetchSocialMediasBatch(logins);
+            data.forEach(s => {
+                if (s.social === undefined && s._login) {
+                    s.social = socialMap[s._login] || [];
+                }
+            });
+        }
+    }
+
+    // Панели: запрашиваем для тех, у кого нет данных
+    if (fields.panels) {
+        const missing = data.filter(s => s.panels === undefined && s._userId);
+        if (missing.length > 0) {
+            const userIds = missing.map(s => s._userId);
+            const BATCH = 20;
+            const panelsMap = {};
+            for (let bi = 0; bi < userIds.length; bi += BATCH) {
+                const chunk = userIds.slice(bi, bi + BATCH);
+                const chunkMap = await fetchPanelsForUsers(chunk);
+                Object.assign(panelsMap, chunkMap);
+            }
+            data.forEach(s => {
+                if (s.panels === undefined && s._userId) {
+                    s.panels = panelsMap[s._userId] || [];
+                }
+            });
+        }
+    }
+
+    return data;
+}
 
 // ─── Обработчик сообщений ─────────────────────────────────────────────────
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -476,12 +520,26 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
 
     if (message.action === 'download_last_data') {
-        chrome.storage.local.get(['scrapedData', 'scrapeMeta'], (res) => {
+        chrome.storage.local.get(['scrapedData', 'scrapeMeta'], async (res) => {
             if (res.scrapedData && res.scrapeMeta) {
                 const format = message.format || res.scrapeMeta.format;
-                // fields берём из сообщения popup (текущее состояние чекбоксов)
                 const fields = message.fields || null;
-                downloadData(res.scrapedData, format, res.scrapeMeta.tabId, fields);
+
+                let data = res.scrapedData;
+
+                // Если пользователь хочет соц. сети или панели, но они не были собраны — запрашиваем
+                const needEnrich = fields && (
+                    (fields.social  && data.some(s => s.social  === undefined)) ||
+                    (fields.panels  && data.some(s => s.panels  === undefined))
+                );
+
+                if (needEnrich) {
+                    data = await enrichData([...data], fields);
+                    // Сохраняем обогащённые данные обратно в storage
+                    chrome.storage.local.set({ scrapedData: data });
+                }
+
+                downloadData(data, format, res.scrapeMeta.tabId, fields);
             }
         });
         sendResponse({ ok: true });

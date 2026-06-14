@@ -323,12 +323,10 @@ async function collectStreams(slug, options, tabId) {
 
     const maxStreams = options.maxStreams > 0 ? options.maxStreams : Infinity;
     
-    // Копируем гигантский массив "Всех языков" из логов официального сайта Twitch
-    const TWITCH_ALL_LANGS = ["EN","RU","ID","CA","DA","DE","ES","FR","IT","HU","NL","NO","PL","PT","RO","SK","FI","SV","TL","VI","TR","CS","BG","EL","UK","AR","HI","MS","TH","ZH","KO","JA","ASL","OTHER"];
     const isAll = options.langFilter.includes('all');
-    // Если выбрано 'all', передаем полный массив. Иначе - мапим все выбранные языки
-    const langFilter = isAll ? TWITCH_ALL_LANGS : options.langFilter.map(l => l.toUpperCase());
-    addLog(`Языки: ${JSON.stringify(langFilter)}, SubOnly: ${options.subOnly}`);
+    // Если выбрано 'all', передаем пустой массив, чтобы Twitch вернул все языки без фильтрации
+    const langFilter = isAll ? [] : options.langFilter.map(l => l.toUpperCase());
+    addLog(`Языки: ${JSON.stringify(langFilter)} (isAll: ${isAll}), SubOnly: ${options.subOnly}`);
 
     const collected = new Map();
     let cursor = null;

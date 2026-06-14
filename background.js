@@ -129,6 +129,52 @@ async function fetchPanelsForUsers(userIds) {
     return result;
 }
 
+// ─── Запрос соц. сетей канала ─────────────────────────────────────────────
+async function fetchSocialMediasBatch(logins) {
+    if (!logins || logins.length === 0) return {};
+    const query = `
+    query GetChannelSocial($login: String!) {
+      user(login: $login) {
+        login
+        channel {
+          socialMedias {
+            name
+            title
+            url
+          }
+        }
+      }
+    }`;
+    const result = {};
+    // Батчами по 30 логинов за один fetch
+    const CHUNK = 30;
+    for (let i = 0; i < logins.length; i += CHUNK) {
+        const chunk = logins.slice(i, i + CHUNK);
+        const payload = chunk.map(login => ({ query, variables: { login } }));
+        try {
+            const resp = await fetch("https://gql.twitch.tv/gql", {
+                method: "POST",
+                headers: twitchHeaders,
+                body: JSON.stringify(payload)
+            });
+            const arr = await resp.json();
+            const items = Array.isArray(arr) ? arr : [arr];
+            items.forEach((item, idx) => {
+                const login = chunk[idx];
+                const socials = item?.data?.user?.channel?.socialMedias;
+                if (login && Array.isArray(socials)) {
+                    result[login] = socials
+                        .filter(s => s.url)
+                        .map(s => ({ name: s.name || null, title: s.title || null, url: s.url }));
+                }
+            });
+        } catch (e) {
+            console.error("[TwitchScraper] social fetch error:", e);
+        }
+    }
+    return result;
+}
+
 // ─── Инжект скачивания в Twitch-вкладку ──────────────────────────────────────
 function triggerDownload(data, format, filename, fields) {
     // fields — объект с булевыми флагами (что показывать)
@@ -136,7 +182,7 @@ function triggerDownload(data, format, filename, fields) {
     const f = fields || {
         channel: true, category: true, tags: true, viewers: true,
         followers: true, title: true, language: true, url: true,
-        description: true, panels: true
+        description: true, social: true, panels: true
     };
 
     let content = '';
@@ -155,6 +201,7 @@ function triggerDownload(data, format, filename, fields) {
             if (f.tags        && s.tags        !== undefined) out.tags        = s.tags;
             if (f.url         && s.url         !== undefined) out.url         = s.url;
             if (f.description && s.description !== undefined) out.description = s.description;
+            if (f.social      && s.social      !== undefined) out.social      = s.social;
             if (f.panels      && s.panels      !== undefined) out.panels      = s.panels;
             return out;
         });
@@ -173,6 +220,16 @@ function triggerDownload(data, format, filename, fields) {
             if (f.tags      && s.tags?.length)               content += `- **Теги:** ${s.tags.join(', ')}\n`;
             if (f.url       && s.url)                        content += `- **Ссылка:** ${s.url}\n`;
             if (f.description && s.description)              content += `- **Описание:** ${s.description}\n`;
+
+            // Соц. сети
+            if (f.social && s.social?.length) {
+                content += `\n**Соц. сети:**\n\n`;
+                s.social.forEach(sm => {
+                    const label = sm.title || sm.name || sm.url;
+                    content += `- [${label}](${sm.url})  \n`;
+                });
+                content += '\n';
+            }
 
             // Панели — красивый Markdown
             if (f.panels && s.panels?.length) {
@@ -309,13 +366,19 @@ async function collectStreams(slug, options, tabId) {
         let panelsMap = {};
         if (options.fields.panels && batchNodes.length > 0) {
             const userIds = batchNodes.map(n => n.broadcaster?.id).filter(Boolean);
-            // Разбиваем на батчи по 20 (Twitch ограничивает)
             const BATCH = 20;
             for (let bi = 0; bi < userIds.length; bi += BATCH) {
                 const chunk = userIds.slice(bi, bi + BATCH);
                 const chunkMap = await fetchPanelsForUsers(chunk);
                 Object.assign(panelsMap, chunkMap);
             }
+        }
+
+        // Если нужны соц. сети — запрашиваем пакетом по логинам
+        let socialMap = {};
+        if (options.fields.social && batchNodes.length > 0) {
+            const logins = batchNodes.map(n => n.broadcaster?.login).filter(Boolean);
+            socialMap = await fetchSocialMediasBatch(logins);
         }
 
         for (const node of batchNodes) {
@@ -336,6 +399,11 @@ async function collectStreams(slug, options, tabId) {
             // Панели — только если запрашивали
             if (options.fields.panels) {
                 s.panels = panelsMap[node.broadcaster?.id] || [];
+            }
+
+            // Соц. сети — только если запрашивали
+            if (options.fields.social) {
+                s.social = socialMap[node.broadcaster?.login] || [];
             }
 
             collected.set(node.id, s);

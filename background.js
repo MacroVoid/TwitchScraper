@@ -103,7 +103,7 @@ function buildGQLBody(slug, langFilter, cursor, subOnly) {
     return JSON.stringify({
         query: `
         query DirectoryPageGame($slug: String!, $cursor: Cursor) {
-            game(name: $slug) {
+            game(slug: $slug) {
                 streams(
                     first: 100
                     after: $cursor

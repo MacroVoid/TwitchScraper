@@ -25,6 +25,17 @@ function addLog(msg) {
     chrome.storage.local.set({ debugLogs: _logsBuffer });
 }
 
+async function ensureHeadersLoaded() {
+    try {
+        const res = await chrome.storage.local.get('twitchHeaders');
+        if (res.twitchHeaders) {
+            Object.assign(twitchHeaders, res.twitchHeaders);
+        }
+    } catch (e) {
+        addLog(`Ошибка при загрузке заголовков: ${e.message}`);
+    }
+}
+
 // Оставляем старый ID как запасной (fallback) на случай, 
 // если мы захотим сделать запрос до того, как поймаем новый
 let twitchHeaders = {
@@ -320,6 +331,7 @@ async function collectStreams(slug, options, tabId) {
     _shouldStop = false;
     _shouldFinish = false;
     addLog(`=== ЗАПУСК СБОРА === Категория: ${slug}, Лимит: ${options.maxStreams || 'без лимита'}`);
+    await ensureHeadersLoaded();
 
     const maxStreams = options.maxStreams > 0 ? options.maxStreams : Infinity;
     
@@ -512,6 +524,7 @@ async function collectStreams(slug, options, tabId) {
 // ─── Обогащение уже собранных данных с прогрессом ────────────────────────
 async function enrichData(data, fields) {
     if (!data || !fields) return data;
+    await ensureHeadersLoaded();
     addLog(`=== НАЧАЛО ОБОГАЩЕНИЯ === Стримов: ${data.length}, Поля: ${JSON.stringify(fields)}`);
     _isEnriching = true;
     _shouldStopEnrich = false;

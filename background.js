@@ -30,10 +30,39 @@ async function ensureHeadersLoaded() {
         const res = await chrome.storage.local.get('twitchHeaders');
         if (res.twitchHeaders) {
             Object.assign(twitchHeaders, res.twitchHeaders);
+            cleanHeaders();
         }
     } catch (e) {
         addLog(`Ошибка при загрузке заголовков: ${e.message}`);
     }
+}
+
+const HEADER_KEY_MAP = {
+    'client-id': 'Client-Id',
+    'client-integrity': 'Client-Integrity',
+    'authorization': 'Authorization',
+    'x-device-id': 'X-Device-Id',
+    'client-version': 'Client-Version',
+    'client-session-id': 'Client-Session-Id',
+    'content-type': 'Content-Type'
+};
+
+function cleanHeaders() {
+    let updated = false;
+    for (const key of Object.keys(twitchHeaders)) {
+        const lowerKey = key.toLowerCase();
+        const normalized = HEADER_KEY_MAP[lowerKey];
+        if (normalized) {
+            if (key !== normalized) {
+                delete twitchHeaders[key];
+                updated = true;
+            }
+        } else {
+            delete twitchHeaders[key];
+            updated = true;
+        }
+    }
+    return updated;
 }
 
 // Оставляем старый ID как запасной (fallback) на случай, 
@@ -46,7 +75,11 @@ let twitchHeaders = {
 chrome.storage.local.get('twitchHeaders', (res) => {
     if (res.twitchHeaders) {
         Object.assign(twitchHeaders, res.twitchHeaders);
+        const cleaned = cleanHeaders();
         addLog(`Загружены сохраненные заголовки Twitch из локального хранилища: ${JSON.stringify(Object.keys(twitchHeaders))}`);
+        if (cleaned) {
+            chrome.storage.local.set({ twitchHeaders });
+        }
     }
 });
 
@@ -57,12 +90,20 @@ chrome.webRequest.onSendHeaders.addListener(
             let updated = false;
             for (const header of details.requestHeaders) {
                 const name = header.name.toLowerCase();
+                const normalized = HEADER_KEY_MAP[name];
                 
-                // Добавили 'client-id' в массив!
-                if (['client-id', 'client-integrity', 'authorization', 'x-device-id', 'client-version', 'client-session-id'].includes(name)) {
-                    if (twitchHeaders[header.name] !== header.value) {
-                        twitchHeaders[header.name] = header.value;
-                        addLog(`Перехвачен/изменен заголовок: ${header.name}`);
+                if (normalized) {
+                    // Удаляем старые дубликаты с разным регистром (например, Client-ID)
+                    for (const key of Object.keys(twitchHeaders)) {
+                        if (key.toLowerCase() === name && key !== normalized) {
+                            delete twitchHeaders[key];
+                            updated = true;
+                        }
+                    }
+
+                    if (twitchHeaders[normalized] !== header.value) {
+                        twitchHeaders[normalized] = header.value;
+                        addLog(`Перехвачен/изменен заголовок: ${normalized}`);
                         updated = true;
                     }
                 }
@@ -369,6 +410,7 @@ async function collectStreams(slug, options, tabId) {
             if (resp.status !== 200) {
                 const text = await resp.text();
                 addLog(`Ошибка HTTP. Тело ответа: ${text.substring(0, 400)}`);
+                throw new Error(`HTTP ${resp.status}: ${text.substring(0, 100)}`);
             }
             json = await resp.json();
         } catch (e) {

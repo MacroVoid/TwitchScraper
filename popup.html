@@ -512,17 +512,52 @@
     input[type="number"]::-webkit-outer-spin-button {
       -webkit-appearance: none;
       margin: 0;
+    /* ===== LANGUAGE MENU ===== */
+    .lang-dropdown {
+      position: absolute;
+      top: 50px;
+      left: 20px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+      z-index: 100;
+      display: none;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .lang-dropdown.show {
+      display: flex;
+    }
+    .lang-option {
+      padding: 8px 16px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: background 0.2s;
+    }
+    .lang-option:hover {
+      background: var(--surface-light);
+    }
+    .lang-option.active {
+      color: var(--primary-hover);
+      font-weight: 600;
     }
   </style>
 </head>
 
 <body>
-  <div class="header">
+  <div class="header" style="position: relative;">
     <div style="display: flex; align-items: center; gap: 10px;">
-      <div class="header-icon">📡</div>
-      <h2>Twitch Scraper</h2>
+      <button id="ui_lang_btn" class="header-btn" title="Language">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-languages-icon lucide-languages"><path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/></svg>
+      </button>
+      <h2 data-i18n="app_title">Twitch Scraper</h2>
+      <div id="ui_lang_menu" class="lang-dropdown">
+        <div class="lang-option" data-lang="ru">Русский</div>
+        <div class="lang-option" data-lang="en">English</div>
+      </div>
     </div>
-    <button id="debug_toggle_btn" class="header-btn" title="Панель отладки">
+    <button id="debug_toggle_btn" class="header-btn" data-i18n-title="btn_debug_title" title="Панель отладки">
       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
         class="lucide lucide-bug-icon lucide-bug">
@@ -547,46 +582,46 @@
     <!-- ПРОГРЕСС (скрыт если неактивен) -->
     <div id="progress-section">
       <div class="progress-header">
-        <span class="progress-label" id="progress-label">Сбор данных...</span>
+        <span class="progress-label" id="progress-label" data-i18n="progress_gathering">Сбор данных...</span>
         <span class="progress-count" id="progress-count">0</span>
       </div>
       <div class="progress-bar-wrap">
         <div class="progress-bar-fill indeterminate" id="progress-bar"></div>
       </div>
-      <div class="progress-sub" id="progress-sub">Инициализация...</div>
+      <div class="progress-sub" id="progress-sub" data-i18n="progress_init">Инициализация...</div>
     </div>
 
     <!-- ПОЛЯ ДЛЯ СБОРА -->
     <div class="section" id="fields-section">
-      <div class="section-title">Данные для сбора</div>
+      <div class="section-title" data-i18n="sec_fields">Данные для сбора</div>
       <div class="grid-options">
-        <label class="checkbox-label"><input type="checkbox" id="cb_channel" checked> Канал</label>
-        <label class="checkbox-label"><input type="checkbox" id="cb_category" checked> Категория</label>
-        <label class="checkbox-label"><input type="checkbox" id="cb_tags" checked> Теги</label>
-        <label class="checkbox-label"><input type="checkbox" id="cb_viewers" checked> Зрители</label>
-        <label class="checkbox-label"><input type="checkbox" id="cb_followers" checked> Фолловеры</label>
-        <label class="checkbox-label"><input type="checkbox" id="cb_title" checked> Название</label>
-        <label class="checkbox-label"><input type="checkbox" id="cb_language" checked> Язык</label>
-        <label class="checkbox-label"><input type="checkbox" id="cb_url" checked> Ссылка</label>
-        <label class="checkbox-label"><input type="checkbox" id="cb_desc" checked> Описание</label>
-        <label class="checkbox-label"><input type="checkbox" id="cb_social" checked> Соц. сети</label>
-        <label class="checkbox-label"><input type="checkbox" id="cb_panels"> Панели</label>
+        <label class="checkbox-label"><input type="checkbox" id="cb_channel" checked><span data-i18n="cb_channel"> Канал</span></label>
+        <label class="checkbox-label"><input type="checkbox" id="cb_category" checked><span data-i18n="cb_category"> Категория</span></label>
+        <label class="checkbox-label"><input type="checkbox" id="cb_tags" checked><span data-i18n="cb_tags"> Теги</span></label>
+        <label class="checkbox-label"><input type="checkbox" id="cb_viewers" checked><span data-i18n="cb_viewers"> Зрители</span></label>
+        <label class="checkbox-label"><input type="checkbox" id="cb_followers" checked><span data-i18n="cb_followers"> Фолловеры</span></label>
+        <label class="checkbox-label"><input type="checkbox" id="cb_title" checked><span data-i18n="cb_title"> Название</span></label>
+        <label class="checkbox-label"><input type="checkbox" id="cb_language" checked><span data-i18n="cb_language"> Язык</span></label>
+        <label class="checkbox-label"><input type="checkbox" id="cb_url" checked><span data-i18n="cb_url"> Ссылка</span></label>
+        <label class="checkbox-label"><input type="checkbox" id="cb_desc" checked><span data-i18n="cb_desc"> Описание</span></label>
+        <label class="checkbox-label"><input type="checkbox" id="cb_social" checked><span data-i18n="cb_social"> Соц. сети</span></label>
+        <label class="checkbox-label"><input type="checkbox" id="cb_panels"><span data-i18n="cb_panels"> Панели</span></label>
       </div>
     </div>
 
     <!-- ФИЛЬТР -->
     <div class="section" id="filter-section">
-      <div class="section-title">Фильтры</div>
+      <div class="section-title" data-i18n="sec_filters">Фильтры</div>
       <div class="lang-select-container">
         <div class="lang-list" id="lang_list"></div>
       </div>
       <label class="checkbox-label" style="margin-top: 8px;">
-        <input type="checkbox" id="cb_subonly"> Включать приватные (Sub-Only)
+        <input type="checkbox" id="cb_subonly"><span data-i18n="cb_subonly"> Включать приватные (Sub-Only)</span>
       </label>
     </div>
 
     <div class="section" id="sort-section">
-      <div class="section-title">Сортировка по зрителям</div>
+      <div class="section-title" data-i18n="sec_sort">Сортировка по зрителям</div>
       <div class="radio-group">
         <label class="radio-label">
           <input type="radio" name="sort_dir" value="desc" checked>
@@ -598,7 +633,7 @@
             <path d="M11 8h7" />
             <path d="M11 12h4" />
           </svg>
-          По убыванию
+          <span data-i18n="sort_desc">По убыванию</span>
         </label>
         <label class="radio-label">
           <input type="radio" name="sort_dir" value="asc">
@@ -610,23 +645,23 @@
             <path d="M11 8h7" />
             <path d="M11 12h10" />
           </svg>
-          По возрастанию
+          <span data-i18n="sort_asc">По возрастанию</span>
         </label>
       </div>
     </div>
 
     <div class="section" id="settings-section">
-      <div class="section-title">Настройки экспорта</div>
+      <div class="section-title" data-i18n="sec_export">Настройки экспорта</div>
       <div class="two-col" style="margin-bottom: 12px;">
-        <label for="max_streams">Лимит (0 - без лимита):</label>
+        <label for="max_streams" data-i18n="export_limit">Лимит (0 - без лимита):</label>
         <input type="number" id="max_streams" value="0" min="0" max="100000">
       </div>
       <div class="radio-group" style="margin-bottom: 12px;">
-        <label class="radio-label"><input type="radio" name="format" value="json" checked> JSON</label>
-        <label class="radio-label"><input type="radio" name="format" value="md"> Markdown</label>
+        <label class="radio-label"><input type="radio" name="format" value="json" checked><span data-i18n="export_json"> JSON</span></label>
+        <label class="radio-label"><input type="radio" name="format" value="md"><span data-i18n="export_md"> Markdown</span></label>
       </div>
 
-      <button id="default_settings_btn" class="btn-secondary"
+      <button id="default_settings_btn" class="btn-secondary" data-i18n="btn_reset_ui"
         style="margin-top: 4px; padding: 6px; font-size: 11px; opacity: 0.8; width: 100%;">
         Сбросить настройки интерфейса
       </button>
@@ -639,7 +674,7 @@
         <polyline points="7 10 12 15 17 10" />
         <line x1="12" y1="15" x2="12" y2="3" />
       </svg>
-      Собрать и скачать
+      <span data-i18n="btn_collect">Собрать и скачать</span>
     </button>
 
     <!-- Кнопки управления (видны только во время сбора) -->
@@ -648,7 +683,7 @@
         <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
           <rect x="4" y="4" width="16" height="16" rx="2" />
         </svg>
-        Стоп
+        <span data-i18n="btn_stop">Стоп</span>
       </button>
       <button id="finish_btn" class="btn-finish">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
@@ -657,7 +692,7 @@
           <polyline points="7 10 12 15 17 10" />
           <line x1="12" y1="15" x2="12" y2="3" />
         </svg>
-        Завершить
+        <span data-i18n="btn_finish">Завершить</span>
       </button>
     </div>
 
@@ -669,9 +704,9 @@
           <polyline points="7 10 12 15 17 10" />
           <line x1="12" y1="15" x2="12" y2="3" />
         </svg>
-        Скачать файл
+        <span data-i18n="btn_download_file">Скачать файл</span>
       </button>
-      <button id="reset_btn" class="btn-secondary">
+      <button id="reset_btn" class="btn-secondary" data-i18n="btn_reset_full">
         Сбросить и начать заново
       </button>
     </div>
@@ -682,7 +717,7 @@
         <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
           <rect x="4" y="4" width="16" height="16" rx="2" />
         </svg>
-        Стоп
+        <span data-i18n="btn_stop_enrich">Стоп</span>
       </button>
     </div>
 
@@ -691,14 +726,14 @@
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
           <polygon points="5 3 19 12 5 21 5 3" />
         </svg>
-        Продолжить
+        <span data-i18n="btn_continue">Продолжить</span>
       </button>
       <button id="cancel_enrich_btn" class="btn-stop" style="flex: 1; padding: 11px; font-size: 13px;">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
           <line x1="18" y1="6" x2="6" y2="18" />
           <line x1="6" y1="6" x2="18" y2="18" />
         </svg>
-        Отменить
+        <span data-i18n="btn_cancel">Отменить</span>
       </button>
     </div>
 
@@ -712,10 +747,10 @@
   <!-- DEBUG VIEW -->
   <div class="container" id="debug-view" style="display: none;">
     <div class="section">
-      <div class="section-title">Панель отладки</div>
+      <div class="section-title" data-i18n="sec_debug">Панель отладки</div>
 
       <label class="checkbox-label" style="margin-bottom: 12px; display: flex; align-items: center; width: 100%;">
-        <input type="checkbox" id="cb_disable_logging"> Отключить ведение логов
+        <input type="checkbox" id="cb_disable_logging"><span data-i18n="cb_disable_log"> Отключить ведение логов</span>
       </label>
 
       <button id="download_logs_btn" class="btn-collect"
@@ -726,7 +761,7 @@
           <polyline points="7 10 12 15 17 10" />
           <line x1="12" y1="15" x2="12" y2="3" />
         </svg>
-        Скачать дебаг-логи
+        <span data-i18n="btn_dl_logs">Скачать дебаг-логи</span>
       </button>
 
       <button id="clear_logs_btn" class="btn-secondary"
@@ -737,7 +772,7 @@
           <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
           <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
         </svg>
-        Очистить логи
+        <span data-i18n="btn_clear_logs">Очистить логи</span>
       </button>
 
       <button id="full_reset_btn" class="btn-secondary"
@@ -747,16 +782,17 @@
           <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
           <path d="M3 3v5h5" />
         </svg>
-        Полный сброс расширения (Экстренный)
+        <span data-i18n="btn_emergency_reset">Полный сброс расширения (Экстренный)</span>
       </button>
     </div>
 
-    <button id="debug_back_btn" class="btn-secondary"
+    <button id="debug_back_btn" class="btn-secondary" data-i18n="btn_back"
       style="width: 100%; margin-top: 10px; padding: 10px; font-size: 13px;">
       Назад
     </button>
   </div>
 
+  <script src="i18n.js"></script>
   <script src="popup.js"></script>
 </body>
 

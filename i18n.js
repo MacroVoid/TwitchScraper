@@ -1,0 +1,160 @@
+const I18N = {
+    ru: {
+        // App title
+        "app_title": "Twitch Scraper",
+        // Header
+        "btn_debug_title": "Панель отладки",
+        // Progress
+        "progress_gathering": "Сбор данных...",
+        "progress_init": "Инициализация...",
+        "progress_enrich_social": "Сбор: Соц. сети...",
+        "progress_enrich_panels": "Сбор: Панели...",
+        "progress_paused": "Сбор: {0} (Приостановлен)",
+        "progress_done": "Сбор завершён!",
+        "progress_saved": "✅ Скачано {0} стримов",
+        "progress_stopped": "Приостановлено",
+        "progress_preparing": "Подготовка...",
+        // Sections
+        "sec_fields": "Данные для сбора",
+        "sec_filters": "Фильтры",
+        "sec_sort": "Сортировка по зрителям",
+        "sec_export": "Настройки экспорта",
+        "sec_debug": "Панель отладки",
+        // Fields
+        "cb_channel": " Канал",
+        "cb_category": " Категория",
+        "cb_tags": " Теги",
+        "cb_viewers": " Зрители",
+        "cb_followers": " Фолловеры",
+        "cb_title": " Название",
+        "cb_language": " Язык",
+        "cb_url": " Ссылка",
+        "cb_desc": " Описание",
+        "cb_social": " Соц. сети",
+        "cb_panels": " Панели",
+        // Filters
+        "cb_subonly": " Включать приватные (Sub-Only)",
+        // Sort
+        "sort_desc": " По убыванию",
+        "sort_asc": " По возрастанию",
+        // Export
+        "export_limit": "Лимит (0 - без лимита):",
+        "export_json": " JSON",
+        "export_md": " Markdown",
+        "btn_reset_ui": "Сбросить настройки интерфейса",
+        // Main Actions
+        "btn_collect": "Собрать и скачать",
+        "btn_stop": "Стоп",
+        "btn_finish": "Завершить",
+        "btn_download_now": "Скачать сейчас",
+        "btn_download_file": "Скачать файл",
+        "btn_reset_full": "Сбросить и начать заново",
+        // Enrich Actions
+        "btn_continue": "Продолжить",
+        "btn_cancel": "Отменить",
+        "btn_stop_enrich": "Стоп",
+        // Debug Actions
+        "cb_disable_log": " Отключить ведение логов",
+        "btn_dl_logs": "Скачать дебаг-логи",
+        "btn_clear_logs": "Очистить логи",
+        "btn_emergency_reset": "Полный сброс расширения (Экстренный)",
+        "btn_back": "Назад",
+        // Status pills
+        "pill_running": "⏳ Идёт сбор",
+        "pill_enriching": "⏳ {0}",
+        "pill_paused": "⏸ Приостановлено",
+        "pill_done": "✓ {0} стримов сохранено",
+        "pill_stopping": "Останавливаем...",
+        "pill_preparing": "⬇️ Подготовка файла...",
+        "pill_error_open_twitch": "✗ Откройте страницу категории Twitch",
+        "pill_pausing": "⏸ Приостанавливаем...",
+        "pill_continuing": "⏳ Продолжаем сбор...",
+        "pill_canceling": "💾 Завершаем без доп. данных...",
+        "pill_logs_cleared": "✓ Логи очищены",
+        "pill_reset_done": "✓ Сброшено",
+        // Misc texts
+        "txt_social": "Соц. сети",
+        "txt_panels": "Панели",
+        "alert_reset": "Вы уверены, что хотите полностью сбросить расширение? Это очистит кэш, настройки и текущий прогресс.",
+        "alert_empty_logs": "Логи пока пусты."
+    },
+    en: {
+        // App title
+        "app_title": "Twitch Scraper",
+        // Header
+        "btn_debug_title": "Debug Panel",
+        // Progress
+        "progress_gathering": "Gathering data...",
+        "progress_init": "Initializing...",
+        "progress_enrich_social": "Gathering: Socials...",
+        "progress_enrich_panels": "Gathering: Panels...",
+        "progress_paused": "Gathering: {0} (Paused)",
+        "progress_done": "Collection Complete!",
+        "progress_saved": "✅ Downloaded {0} streams",
+        "progress_stopped": "Paused",
+        "progress_preparing": "Preparing...",
+        // Sections
+        "sec_fields": "Data to Collect",
+        "sec_filters": "Filters",
+        "sec_sort": "Sort by Viewers",
+        "sec_export": "Export Settings",
+        "sec_debug": "Debug Panel",
+        // Fields
+        "cb_channel": " Channel",
+        "cb_category": " Category",
+        "cb_tags": " Tags",
+        "cb_viewers": " Viewers",
+        "cb_followers": " Followers",
+        "cb_title": " Title",
+        "cb_language": " Language",
+        "cb_url": " URL",
+        "cb_desc": " Description",
+        "cb_social": " Social Links",
+        "cb_panels": " Panels",
+        // Filters
+        "cb_subonly": " Include Sub-Only Streams",
+        // Sort
+        "sort_desc": " Descending",
+        "sort_asc": " Ascending",
+        // Export
+        "export_limit": "Limit (0 - unlimited):",
+        "export_json": " JSON",
+        "export_md": " Markdown",
+        "btn_reset_ui": "Reset UI Settings",
+        // Main Actions
+        "btn_collect": "Collect and Download",
+        "btn_stop": "Stop",
+        "btn_finish": "Finish",
+        "btn_download_now": "Download Now",
+        "btn_download_file": "Download File",
+        "btn_reset_full": "Reset and Start Over",
+        // Enrich Actions
+        "btn_continue": "Continue",
+        "btn_cancel": "Cancel",
+        "btn_stop_enrich": "Stop",
+        // Debug Actions
+        "cb_disable_log": " Disable Logging",
+        "btn_dl_logs": "Download Debug Logs",
+        "btn_clear_logs": "Clear Logs",
+        "btn_emergency_reset": "Emergency Extension Reset",
+        "btn_back": "Back",
+        // Status pills
+        "pill_running": "⏳ Gathering",
+        "pill_enriching": "⏳ {0}",
+        "pill_paused": "⏸ Paused",
+        "pill_done": "✓ {0} streams saved",
+        "pill_stopping": "Stopping...",
+        "pill_preparing": "⬇️ Preparing file...",
+        "pill_error_open_twitch": "✗ Open a Twitch Category page",
+        "pill_pausing": "⏸ Pausing...",
+        "pill_continuing": "⏳ Resuming...",
+        "pill_canceling": "💾 Finishing without extra data...",
+        "pill_logs_cleared": "✓ Logs Cleared",
+        "pill_reset_done": "✓ Reset Done",
+        // Misc texts
+        "txt_social": "Socials",
+        "txt_panels": "Panels",
+        "alert_reset": "Are you sure you want to completely reset the extension? This will clear cache, settings, and current progress.",
+        "alert_empty_logs": "Logs are currently empty."
+    }
+};

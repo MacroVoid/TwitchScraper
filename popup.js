@@ -52,6 +52,9 @@ const progressBar     = document.getElementById('progress-bar');
 const progressSub     = document.getElementById('progress-sub');
 const statusPill      = document.getElementById('status-pill');
 const langSelect      = document.getElementById('lang_filter');
+const doneButtons     = document.getElementById('done-buttons');
+const downloadBtn     = document.getElementById('download_btn');
+const resetBtn        = document.getElementById('reset_btn');
 
 // Заполняем список языков
 TWITCH_LANGUAGES.forEach(lang => {
@@ -80,6 +83,7 @@ function applyState(state) {
     if (phase === 'running') {
         showProgress(true);
         showActionButtons(true);
+        doneButtons.style.display = 'none'; // Скрываем новые кнопки
         collectBtn.style.display = 'none';
         progressLabel.textContent = 'Идёт сбор...';
         progressCount.textContent = (collected || 0).toLocaleString('ru-RU');
@@ -101,8 +105,9 @@ function applyState(state) {
     } else if (phase === 'done') {
         showProgress(true);
         showActionButtons(false);
+        doneButtons.style.display = 'flex'; // Показываем новые кнопки
         collectBtn.style.display = 'none';
-        progressLabel.textContent = 'Готово! Файл скачан';
+        progressLabel.textContent = 'Сбор завершён!';
         progressCount.textContent = (collected || 0).toLocaleString('ru-RU');
         progressBar.classList.remove('indeterminate');
         progressBar.classList.add('done');
@@ -113,6 +118,7 @@ function applyState(state) {
     } else if (phase === 'error') {
         showProgress(false);
         showActionButtons(false);
+        doneButtons.style.display = 'none'; // Скрываем новые кнопки
         collectBtn.style.display = 'flex';
         showPill('error', '✗ ' + (error || 'Ошибка'));
 
@@ -141,6 +147,7 @@ function showPill(type, text) {
 function resetToIdle() {
     showProgress(false);
     showActionButtons(false);
+    doneButtons.style.display = 'none'; // Добавить эту строку
     collectBtn.style.display = 'flex';
     collectBtn.disabled = false;
     collectBtn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Собрать и скачать`;
@@ -204,4 +211,14 @@ collectBtn.addEventListener('click', async () => {
     applyState({ phase: 'running', collected: 0, target: options.maxStreams, error: null });
 
     chrome.runtime.sendMessage({ action: 'start_collection', tabId: tab.id, options });
+});
+
+// ─── Кнопки ФИНАЛА (Скачать и Сбросить) ───────────────────────────────────
+downloadBtn.addEventListener('click', () => {
+    // Просто отправляем сигнал, background сам достанет данные из storage
+    chrome.runtime.sendMessage({ action: 'download_last_data' });
+});
+
+resetBtn.addEventListener('click', () => {
+    chrome.runtime.sendMessage({ action: 'reset_state' });
 });

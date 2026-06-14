@@ -52,8 +52,13 @@ function setIdle() {
     setState({ phase: 'idle', collected: 0, target: 0, error: null });
 }
 
+// ─── Вспомогательные ──────────────────────────────────────────────────────
 function buildGQLBody(slug, langFilter, cursor) {
-    const langClause = langFilter.length > 0 ? `broadcasterLanguages: [${langFilter.join(', ')}]` : '';
+    // GraphQL на Twitch ожидает список языков как ENUM (без кавычек).
+    // То есть [EN, RU, ES], а не ["EN", "RU", "ES"]. 
+    // Поэтому мы просто склеиваем массив через запятую:
+    const langString = langFilter.join(', '); 
+    
     return JSON.stringify({
         query: `
         query DirectoryPageGame($slug: String!, $cursor: Cursor) {
@@ -63,7 +68,7 @@ function buildGQLBody(slug, langFilter, cursor) {
                     after: $cursor
                     options: {
                         sort: VIEWER_COUNT
-                        ${langClause}
+                        broadcasterLanguages: [${langString}]
                         recommendationsContext: { platform: "web" }
                         systemFilters: []
                     }
@@ -131,8 +136,12 @@ async function collectStreams(slug, options, tabId) {
     _shouldFinish = false;
 
     const maxStreams = options.maxStreams > 0 ? options.maxStreams : Infinity;
+    
+    // Копируем гигантский массив "Всех языков" из логов официального сайта Twitch
+    const TWITCH_ALL_LANGS = ["EN","RU","ID","CA","DA","DE","ES","FR","IT","HU","NL","NO","PL","PT","RO","SK","FI","SV","TL","VI","TR","CS","BG","EL","UK","AR","HI","MS","TH","ZH","KO","JA","ASL","OTHER"];
     const isAll = options.langFilter === 'all';
-    const langFilter = isAll ? [] : [options.langFilter.toUpperCase()];
+    // Если выбрано 'all', передаем полный массив. Иначе - выбранный язык
+    const langFilter = isAll ? TWITCH_ALL_LANGS : [options.langFilter.toUpperCase()];
 
     const collected = new Map();
     let cursor = null;
@@ -145,7 +154,7 @@ async function collectStreams(slug, options, tabId) {
         try {
             const resp = await fetch("https://gql.twitch.tv/gql", {
                 method: "POST",
-                headers: twitchHeaders, // <-- ИСПОЛЬЗУЕМ ПЕРЕХВАЧЕННЫЕ ЗАГОЛОВКИ
+                headers: twitchHeaders,
                 body: buildGQLBody(slug, langFilter, cursor)
             });
             json = await resp.json();
@@ -159,8 +168,6 @@ async function collectStreams(slug, options, tabId) {
 
         if (json.errors) {
             console.warn("[TwitchScraper] GQL errors:", json.errors);
-            
-            // Если Twitch заблокировал запрос (токен устарел или ещё не пойман)
             const isIntegrityError = json.errors.some(e => e.extensions?.code === 'IntegrityCheckFailed');
             if (isIntegrityError) {
                 setState({ 
@@ -179,7 +186,6 @@ async function collectStreams(slug, options, tabId) {
             continue;
         }
 
-        // --- ВОТ ЭТА ЧАСТЬ БЫЛА УТЕРЯНА ПРИ КОПИРОВАНИИ ---
         const streams = json.data?.game?.streams;
         if (!streams) { emptyStreak++; if (emptyStreak >= 3) break; continue; }
 
@@ -192,10 +198,11 @@ async function collectStreams(slug, options, tabId) {
         }
         emptyStreak = 0;
 
-        let newInBatch = 0;
         for (const edge of edges) {
             if (collected.size >= maxStreams || _shouldStop || _shouldFinish) break;
             const node = edge.node;
+            
+            // Если трансляция дублируется, просто пропускаем её, но цикл НЕ обрываем!
             if (!node || collected.has(node.id)) continue;
 
             const s = {};
@@ -213,32 +220,40 @@ async function collectStreams(slug, options, tabId) {
             if (options.fields.description) s.description = "Недоступно через API категорий";
 
             collected.set(node.id, s);
-            newInBatch++;
         }
 
-        // Прогресс
         setState({ phase: 'running', collected: collected.size, target: options.maxStreams || 0, error: null, tabId, format: options.format });
 
         const hasNextPage = streams.pageInfo?.hasNextPage;
-        if (!hasNextPage || edges.length === 0 || newInBatch === 0) break;
+        
+        // ВАЖНО: Мы убрали || newInBatch === 0. Теперь сбор остановится только если Twitch скажет, что страниц больше нет.
+        if (!hasNextPage || edges.length === 0) break;
 
-        cursor = edges[edges.length - 1].cursor;
+        const nextCursor = edges[edges.length - 1].cursor;
+        
+        // Защита от бесконечного цикла: если сервер намертво завис и отдает один и тот же курсор
+        if (cursor === nextCursor) break; 
+        
+        cursor = nextCursor;
         await new Promise(r => setTimeout(r, 150));
-    } // <-- ЗАКРЫВАЮЩАЯ СКОБКА ЦИКЛА WHILE, КОТОРАЯ ПРОПАЛА
+    }
 
     _isRunning = false;
 
-    // Если нажали "Стоп" — просто сбрасываем
     if (_shouldStop) { setIdle(); return; }
 
-    // Иначе (финиш или естественный конец) — скачиваем
     const data = Array.from(collected.values());
     const doneState = { phase: 'done', collected: data.length, target: options.maxStreams || 0, error: null };
-    setState(doneState);
-
-    downloadData(data, options.format || 'json', tabId);
-    setTimeout(setIdle, 4000);
+    
+    chrome.storage.local.set({ 
+        scrapingState: doneState, 
+        scrapedData: data, 
+        scrapeMeta: { format: options.format || 'json', tabId: tabId } 
+    }, () => {
+        setState(doneState);
+    });
 }
+
 
 // ─── Обработчик сообщений ─────────────────────────────────────────────────
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -273,7 +288,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return true;
     }
 
+    if (message.action === 'download_last_data') {
+        chrome.storage.local.get(['scrapedData', 'scrapeMeta'], (res) => {
+            if (res.scrapedData && res.scrapeMeta) {
+                downloadData(res.scrapedData, res.scrapeMeta.format, res.scrapeMeta.tabId);
+            }
+        });
+        sendResponse({ ok: true });
+        return true;
+    }
+
     if (message.action === 'reset_state') {
+        // Очищаем сохранённые данные при сбросе
+        chrome.storage.local.remove(['scrapedData', 'scrapeMeta']);
         if (!_isRunning) setIdle();
         sendResponse({ ok: true });
         return true;

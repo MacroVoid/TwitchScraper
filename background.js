@@ -328,7 +328,9 @@ function triggerDownload(data, format, filename, fields, sortDir) {
             if (f.language  && s.language)                   content += `- **Язык:** ${s.language}\n`;
             if (f.tags      && s.tags?.length)               content += `- **Теги:** ${s.tags.join(', ')}\n`;
             if (f.url       && s.url)                        content += `- **Ссылка:** ${s.url}\n`;
-            if (f.description && s.description)              content += `- **Описание:** ${s.description}\n`;
+            if (f.description && s.description) {
+                content += `- **Описание:**\n<details>\n<summary>Развернуть описание</summary>\n<blockquote>\n${s.description}\n</blockquote>\n</details>\n`;
+            }
 
             // Соц. сети
             if (f.social && s.social?.length) {
@@ -340,22 +342,22 @@ function triggerDownload(data, format, filename, fields, sortDir) {
                 content += '\n';
             }
 
-            // Панели — красивый Markdown
+            // Панели — красивый Markdown без заголовков документа
             if (f.panels && s.panels?.length) {
-                content += `\n**Панели канала:**\n\n`;
-                s.panels.forEach(p => {
-                    // Заголовок панели (если есть) как ссылка или просто текст
+                content += `\n**Панели канала:**\n<details>\n<summary>Развернуть панели (${s.panels.length})</summary>\n<blockquote>\n\n`;
+                s.panels.forEach((p, idx) => {
+                    // Заголовок панели (если есть) как ссылка или просто текст (используем жирный шрифт вместо ###)
                     if (p.title && p.linkURL) {
-                        content += `### [${p.title}](${p.linkURL})\n`;
+                        content += `**[${p.title}](${p.linkURL})**  \n`;
                     } else if (p.title) {
-                        content += `### ${p.title}\n`;
+                        content += `**${p.title}**  \n`;
                     } else if (p.linkURL) {
                         // Панель без заголовка — только ссылка (обычно картинка-баннер)
-                        content += `### [🔗 Ссылка](${p.linkURL})\n`;
+                        content += `**[🔗 Ссылка](${p.linkURL})**  \n`;
                     }
 
                     // Alt text (если есть)
-                    if (p.altText) content += `> ${p.altText}\n`;
+                    if (p.altText) content += `> ${p.altText}  \n`;
 
                     // Описание панели с сохранением переносов строк
                     if (p.description && p.description.trim()) {
@@ -364,8 +366,11 @@ function triggerDownload(data, format, filename, fields, sortDir) {
                             content += `${line}  \n`;
                         });
                     }
-                    content += '\n';
+                    if (idx < s.panels.length - 1) {
+                        content += '\n---\n\n';
+                    }
                 });
+                content += `\n</blockquote>\n</details>\n`;
             }
 
             content += '\n---\n\n';

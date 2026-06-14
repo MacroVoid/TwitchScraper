@@ -32,10 +32,18 @@ let twitchHeaders = {
     "Content-Type": "application/json"
 };
 
+chrome.storage.local.get('twitchHeaders', (res) => {
+    if (res.twitchHeaders) {
+        Object.assign(twitchHeaders, res.twitchHeaders);
+        addLog(`Загружены сохраненные заголовки Twitch из локального хранилища: ${JSON.stringify(Object.keys(twitchHeaders))}`);
+    }
+});
+
 // Пассивно перехватываем ВСЕ важные токены
 chrome.webRequest.onSendHeaders.addListener(
     (details) => {
         if (details.requestHeaders) {
+            let updated = false;
             for (const header of details.requestHeaders) {
                 const name = header.name.toLowerCase();
                 
@@ -44,8 +52,12 @@ chrome.webRequest.onSendHeaders.addListener(
                     if (twitchHeaders[header.name] !== header.value) {
                         twitchHeaders[header.name] = header.value;
                         addLog(`Перехвачен/изменен заголовок: ${header.name}`);
+                        updated = true;
                     }
                 }
+            }
+            if (updated) {
+                chrome.storage.local.set({ twitchHeaders });
             }
         }
     },

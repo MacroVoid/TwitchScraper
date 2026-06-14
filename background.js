@@ -78,7 +78,7 @@ function buildGQLBody(slug, langFilter, cursor, subOnly) {
                         cursor
                         node {
                             id title viewersCount
-                            broadcaster { login displayName description } # <-- Добавили description!
+                            broadcaster { login displayName description followers { totalCount } }
                             freeformTags { name }
                             game { name displayName }
                         }
@@ -106,6 +106,8 @@ function triggerDownload(data, format, filename) {
             
             // Проверяем !== undefined, чтобы 0 зрителей тоже выводилось
             if (s.viewers !== undefined) content += `- **Зрители:** ${s.viewers}\n`;
+            
+            if (s.followers !== undefined) content += `- **Фолловеры:** ${s.followers}\n`;
             
             if (s.language)     content += `- **Язык:** ${s.language}\n`;
             if (s.tags?.length) content += `- **Теги:** ${s.tags.join(', ')}\n`;
@@ -146,9 +148,9 @@ async function collectStreams(slug, options, tabId) {
     
     // Копируем гигантский массив "Всех языков" из логов официального сайта Twitch
     const TWITCH_ALL_LANGS = ["EN","RU","ID","CA","DA","DE","ES","FR","IT","HU","NL","NO","PL","PT","RO","SK","FI","SV","TL","VI","TR","CS","BG","EL","UK","AR","HI","MS","TH","ZH","KO","JA","ASL","OTHER"];
-    const isAll = options.langFilter === 'all';
-    // Если выбрано 'all', передаем полный массив. Иначе - выбранный язык
-    const langFilter = isAll ? TWITCH_ALL_LANGS : [options.langFilter.toUpperCase()];
+    const isAll = options.langFilter.includes('all');
+    // Если выбрано 'all', передаем полный массив. Иначе - мапим все выбранные языки
+    const langFilter = isAll ? TWITCH_ALL_LANGS : options.langFilter.map(l => l.toUpperCase());
 
     const collected = new Map();
     let cursor = null;
@@ -223,10 +225,11 @@ async function collectStreams(slug, options, tabId) {
             
             if (options.fields.title)       s.title       = node.title || "";
             if (options.fields.url)         s.url         = `https://www.twitch.tv/${node.broadcaster?.login || ""}`;
+            if (options.fields.followers)   s.followers   = node.broadcaster?.followers?.totalCount || 0;
             if (options.fields.language) {
                 s.language = isAll
                     ? (node.freeformTags?.[0]?.name ?? "unknown")
-                    : options.langFilter;
+                    : options.langFilter.map(l => l.toUpperCase()).join(', ');
             }
             
             // ИЗМЕНЕНО: теперь забираем реальное описание канала из broadcaster.description

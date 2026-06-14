@@ -51,17 +51,98 @@ const progressCount   = document.getElementById('progress-count');
 const progressBar     = document.getElementById('progress-bar');
 const progressSub     = document.getElementById('progress-sub');
 const statusPill      = document.getElementById('status-pill');
-const langSelect      = document.getElementById('lang_filter');
+const langList        = document.getElementById('lang_list');
 const doneButtons     = document.getElementById('done-buttons');
 const downloadBtn     = document.getElementById('download_btn');
 const resetBtn        = document.getElementById('reset_btn');
+const defaultSettingsBtn = document.getElementById('default_settings_btn');
 
-// Заполняем список языков
+// Заполняем список языков удобными чекбоксами
 TWITCH_LANGUAGES.forEach(lang => {
-    const opt = document.createElement('option');
-    opt.value = lang.code;
-    opt.textContent = lang.name;
-    langSelect.appendChild(opt);
+    const label = document.createElement('label');
+    label.className = 'checkbox-label';
+    
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.value = lang.code;
+    cb.name = 'lang_checkbox';
+    
+    cb.addEventListener('change', (e) => {
+        if (e.target.value === 'all' && e.target.checked) {
+            document.querySelectorAll('input[name="lang_checkbox"]').forEach(c => {
+                if (c.value !== 'all') c.checked = false;
+            });
+        } else if (e.target.value !== 'all' && e.target.checked) {
+            const allCb = document.querySelector('input[name="lang_checkbox"][value="all"]');
+            if (allCb) allCb.checked = false;
+        }
+        saveUISettings();
+    });
+
+    label.appendChild(cb);
+    label.appendChild(document.createTextNode(' ' + lang.name));
+    langList.appendChild(label);
+});
+
+// ─── Сохранение и загрузка настроек UI ────────────────────────────────────
+function saveUISettings() {
+    const settings = {
+        cb_channel:   document.getElementById('cb_channel').checked,
+        cb_category:  document.getElementById('cb_category').checked,
+        cb_tags:      document.getElementById('cb_tags').checked,
+        cb_viewers:   document.getElementById('cb_viewers').checked,
+        cb_followers: document.getElementById('cb_followers').checked,
+        cb_title:     document.getElementById('cb_title').checked,
+        cb_language:  document.getElementById('cb_language').checked,
+        cb_url:       document.getElementById('cb_url').checked,
+        cb_desc:      document.getElementById('cb_desc').checked,
+        cb_subonly:   document.getElementById('cb_subonly').checked,
+        max_streams:  document.getElementById('max_streams').value,
+        format:       document.querySelector('input[name="format"]:checked').value,
+        lang_filter:  Array.from(document.querySelectorAll('input[name="lang_checkbox"]:checked')).map(cb => cb.value)
+    };
+    chrome.storage.local.set({ uiSettings: settings });
+}
+
+function loadUISettings() {
+    chrome.storage.local.get('uiSettings', (res) => {
+        if (res.uiSettings) {
+            const s = res.uiSettings;
+            if (s.cb_channel !== undefined) document.getElementById('cb_channel').checked = s.cb_channel;
+            if (s.cb_category !== undefined) document.getElementById('cb_category').checked = s.cb_category;
+            if (s.cb_tags !== undefined) document.getElementById('cb_tags').checked = s.cb_tags;
+            if (s.cb_viewers !== undefined) document.getElementById('cb_viewers').checked = s.cb_viewers;
+            if (s.cb_followers !== undefined) document.getElementById('cb_followers').checked = s.cb_followers;
+            if (s.cb_title !== undefined) document.getElementById('cb_title').checked = s.cb_title;
+            if (s.cb_language !== undefined) document.getElementById('cb_language').checked = s.cb_language;
+            if (s.cb_url !== undefined) document.getElementById('cb_url').checked = s.cb_url;
+            if (s.cb_desc !== undefined) document.getElementById('cb_desc').checked = s.cb_desc;
+            if (s.cb_subonly !== undefined) document.getElementById('cb_subonly').checked = s.cb_subonly;
+            if (s.max_streams !== undefined) document.getElementById('max_streams').value = s.max_streams;
+            
+            if (s.format !== undefined) {
+                const rb = document.querySelector(`input[name="format"][value="${s.format}"]`);
+                if (rb) rb.checked = true;
+            }
+            if (s.lang_filter && s.lang_filter.length > 0) {
+                document.querySelectorAll('input[name="lang_checkbox"]').forEach(cb => {
+                    cb.checked = s.lang_filter.includes(cb.value);
+                });
+            } else {
+                const allCb = document.querySelector('input[name="lang_checkbox"][value="all"]');
+                if (allCb) allCb.checked = true;
+            }
+        } else {
+            const allCb = document.querySelector('input[name="lang_checkbox"][value="all"]');
+            if (allCb) allCb.checked = true;
+        }
+    });
+}
+
+loadUISettings();
+
+document.querySelectorAll('input, select').forEach(el => {
+    el.addEventListener('change', saveUISettings);
 });
 
 // ─── Восстановление состояния при открытии popup ───────────────────────────
@@ -186,19 +267,22 @@ collectBtn.addEventListener('click', async () => {
         return;
     }
 
+    const selectedLangs = Array.from(document.querySelectorAll('input[name="lang_checkbox"]:checked')).map(cb => cb.value);
+
     const options = {
         fields: {
             channel:      document.getElementById('cb_channel').checked,
             category:     document.getElementById('cb_category').checked,
             tags:         document.getElementById('cb_tags').checked,
             viewers:      document.getElementById('cb_viewers').checked,
+            followers:    document.getElementById('cb_followers').checked,
             title:        document.getElementById('cb_title').checked,
             language:     document.getElementById('cb_language').checked,
             url:          document.getElementById('cb_url').checked,
             description:  document.getElementById('cb_desc').checked
         },
-        langFilter:  langSelect.value,
-        subOnly:     document.getElementById('cb_subonly').checked, // <-- НОВАЯ СТРОКА
+        langFilter:  selectedLangs.length > 0 ? selectedLangs : ['all'],
+        subOnly:     document.getElementById('cb_subonly').checked,
         maxStreams:  parseInt(document.getElementById('max_streams').value) || 0,
         format:      document.querySelector('input[name="format"]:checked').value
     };
@@ -223,5 +307,30 @@ downloadBtn.addEventListener('click', () => {
 
 resetBtn.addEventListener('click', () => {
     chrome.runtime.sendMessage({ action: 'reset_state' });
+});
+
+// ─── Кнопка СБРОСА НАСТРОЕК ПО УМОЛЧАНИЮ ──────────────────────────────────
+defaultSettingsBtn.addEventListener('click', () => {
+    document.getElementById('cb_channel').checked = true;
+    document.getElementById('cb_category').checked = true;
+    document.getElementById('cb_tags').checked = true;
+    document.getElementById('cb_viewers').checked = true;
+    document.getElementById('cb_followers').checked = true;
+    document.getElementById('cb_title').checked = true;
+    document.getElementById('cb_language').checked = true;
+    document.getElementById('cb_url').checked = true;
+    document.getElementById('cb_desc').checked = true;
+
+    document.getElementById('cb_subonly').checked = false;
+
+    document.querySelectorAll('input[name="lang_checkbox"]').forEach(cb => {
+        cb.checked = (cb.value === 'all');
+    });
+
+    document.getElementById('max_streams').value = "0";
+    const jsonRadio = document.querySelector('input[name="format"][value="json"]');
+    if (jsonRadio) jsonRadio.checked = true;
+
+    saveUISettings();
 });
 

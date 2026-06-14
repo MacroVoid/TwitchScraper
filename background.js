@@ -565,11 +565,11 @@ async function collectStreams(slug, options, tabId) {
                 s.panels = panelsMap[node.broadcaster?.id] || [];
             }
 
-            // Соц. сети и Аптайм — только если запрашивали
+            // Соц. сети и Аптайм — сохраняем оба поля, если запросили хотя бы одно
             if (options.fields.social || options.fields.uptime) {
                 const ext = extrasMap[node.broadcaster?.login] || { socials: [], createdAt: null };
-                if (options.fields.social) s.social = ext.socials;
-                if (options.fields.uptime) s.uptime = ext.createdAt;
+                s.social = ext.socials;
+                s.uptime = ext.createdAt;
             }
 
             collected.set(node.id, s);
@@ -648,30 +648,38 @@ async function enrichData(data, fields) {
         setState(pausedState);
     }
 
-    // Соц. сети
-    if (fields.social) {
-        const missing = data.filter(s => s.social === undefined && s._login);
+    // Соц. сети и Аптайм (доп. поля)
+    if (fields.social || fields.uptime) {
+        const missing = data.filter(s => 
+            ((fields.social && s.social === undefined) || (fields.uptime && s.uptime === undefined)) && s._login
+        );
         const total = missing.length;
-        let done = 0;
-        const CHUNK = 30;
+        if (total > 0) {
+            let done = 0;
+            const CHUNK = 30;
 
-        for (let i = 0; i < missing.length; i += CHUNK) {
-            if (_shouldStopEnrich) {
-                stopAndRestore('social', done, total);
-                return null;
+            for (let i = 0; i < total; i += CHUNK) {
+                if (_shouldStopEnrich) {
+                    stopAndRestore('extras', done, total);
+                    return null;
+                }
+                const chunk = missing.slice(i, i + CHUNK);
+                const extrasMap = await fetchChannelExtrasBatch(chunk.map(s => s._login));
+                chunk.forEach(s => { 
+                    const ext = extrasMap[s._login] || { socials: [], createdAt: null };
+                    s.social = ext.socials;
+                    s.uptime = ext.createdAt;
+                });
+                done += chunk.length;
+                chrome.storage.local.set({ scrapedData: data });
+                setState({ phase: 'enriching', enrichStep: 'extras', enrichDone: done, enrichTotal: total, collected: totalStreams });
             }
-            const chunk = missing.slice(i, i + CHUNK);
-            const socialMap = await fetchSocialMediasBatch(chunk.map(s => s._login));
-            chunk.forEach(s => { s.social = socialMap[s._login] || []; });
-            done += chunk.length;
-            chrome.storage.local.set({ scrapedData: data });
-            setState({ phase: 'enriching', enrichStep: 'social', enrichDone: done, enrichTotal: total, collected: totalStreams });
         }
     }
 
     if (_shouldStopEnrich) {
         const panelsMissing = fields.panels ? data.filter(s => s.panels === undefined && s._userId).length : 0;
-        stopAndRestore(fields.panels ? 'panels' : 'extras', 0, panelsMissing);
+        stopAndRestore('panels', 0, panelsMissing);
         return null;
     }
 

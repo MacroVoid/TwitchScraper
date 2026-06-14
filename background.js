@@ -407,6 +407,11 @@ async function collectStreams(slug, options, tabId) {
 
     const maxStreams = options.maxStreams > 0 ? options.maxStreams : Infinity;
     
+    // Если лимит не задан (без лимита), всегда шлем на сервер 'desc' (по убыванию),
+    // чтобы обойти баги пагинации Twitch для VIEWER_COUNT_ASC.
+    // Локальная сортировка в нужном направлении применится перед записью в файл.
+    const serverSortDir = (maxStreams === Infinity) ? 'desc' : options.sortDir;
+    
     const isAll = options.langFilter.includes('all');
     // Если выбрано 'all', передаем пустой массив, чтобы Twitch вернул все языки без фильтрации
     const langFilter = isAll ? [] : options.langFilter.map(l => l.toUpperCase());
@@ -422,8 +427,8 @@ async function collectStreams(slug, options, tabId) {
     while (collected.size < maxStreams && !_shouldStop && !_shouldFinish) {
         let json;
         try {
-            const body = buildGQLBody(slug, langFilter, cursor, options.subOnly, options.sortDir);
-            addLog(`Запрос GQL (курсор: ${cursor || 'нет'}, сортировка: ${options.sortDir || 'desc'}). Активные заголовки: ${JSON.stringify(Object.keys(twitchHeaders))}`);
+            const body = buildGQLBody(slug, langFilter, cursor, options.subOnly, serverSortDir);
+            addLog(`Запрос GQL (курсор: ${cursor || 'нет'}, сортировка: ${serverSortDir}). Активные заголовки: ${JSON.stringify(Object.keys(twitchHeaders))}`);
             
             const resp = await fetch("https://gql.twitch.tv/gql", {
                 method: "POST",

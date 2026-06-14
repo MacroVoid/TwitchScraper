@@ -30,7 +30,10 @@ async function ensureHeadersLoaded() {
         const res = await chrome.storage.local.get('twitchHeaders');
         if (res.twitchHeaders) {
             Object.assign(twitchHeaders, res.twitchHeaders);
-            cleanHeaders();
+            const cleaned = cleanHeaders();
+            if (cleaned) {
+                await chrome.storage.local.set({ twitchHeaders });
+            }
         }
     } catch (e) {
         addLog(`Ошибка при загрузке заголовков: ${e.message}`);
@@ -109,6 +112,7 @@ chrome.webRequest.onSendHeaders.addListener(
                 }
             }
             if (updated) {
+                cleanHeaders();
                 chrome.storage.local.set({ twitchHeaders });
             }
         }

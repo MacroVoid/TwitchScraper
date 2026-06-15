@@ -273,20 +273,24 @@ function applyState(state) {
         enrichRunningButtons.style.display = 'none';
         enrichPausedButtons.style.display = 'none';
         collectBtn.style.display = 'none';
-        progressLabel.textContent = 'Идёт сбор...';
-        progressCount.textContent = (collected || 0).toLocaleString('ru-RU');
+        progressLabel.textContent = t('progress_gathering');
+        progressCount.textContent = (collected || 0).toLocaleString(currentLang);
 
         const hasTarget = target > 0;
         if (hasTarget) {
             const pct = Math.min(100, Math.round((collected || 0) / target * 100));
             progressBar.classList.remove('indeterminate', 'done');
             progressBar.style.width = pct + '%';
-            progressSub.textContent = `${pct}% — ${(collected || 0).toLocaleString('ru-RU')} из ${target.toLocaleString('ru-RU')} стримов`;
+            progressSub.textContent = t('progress_running_sub_limited')
+                .replace('{0}', pct)
+                .replace('{1}', (collected || 0).toLocaleString(currentLang))
+                .replace('{2}', target.toLocaleString(currentLang));
         } else {
             progressBar.classList.add('indeterminate');
             progressBar.classList.remove('done');
             progressBar.style.width = '100%';
-            progressSub.textContent = `Собрано ${(collected || 0).toLocaleString('ru-RU')} стримов...`;
+            progressSub.textContent = t('progress_running_sub_unlimited')
+                .replace('{0}', (collected || 0).toLocaleString(currentLang));
         }
         showPill('running', t('pill_running'));
 
@@ -299,25 +303,28 @@ function applyState(state) {
         enrichPausedButtons.style.display = 'none';
         collectBtn.style.display = 'none';
         stopEnrichBtn.disabled = false;
-        stopEnrichBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"/></svg> Стоп`;
+        stopEnrichBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"/></svg> ${t('btn_stop')}`;
 
-        const stepLabel = state.enrichStep === 'social' ? 'Social Networks' : 'Panels';
+        const stepLabel = state.enrichStep === 'extras' ? t('txt_social') : t('txt_panels');
         const done = state.enrichDone || 0;
         const total = state.enrichTotal || 0;
 
-        progressLabel.textContent = `Сбор: ${stepLabel}...`;
-        progressCount.textContent = `${done.toLocaleString('ru-RU')} / ${total.toLocaleString('ru-RU')}`;
+        progressLabel.textContent = state.enrichStep === 'extras' ? t('progress_enrich_social') : t('progress_enrich_panels');
+        progressCount.textContent = `${done.toLocaleString(currentLang)} / ${total.toLocaleString(currentLang)}`;
 
         if (total > 0) {
             const pct = Math.min(100, Math.round(done / total * 100));
             progressBar.classList.remove('indeterminate', 'done');
             progressBar.style.width = pct + '%';
-            progressSub.textContent = `${pct}% — ${done.toLocaleString('ru-RU')} из ${total.toLocaleString('ru-RU')} каналов`;
+            progressSub.textContent = t('progress_enrich_sub')
+                .replace('{0}', pct)
+                .replace('{1}', done.toLocaleString(currentLang))
+                .replace('{2}', total.toLocaleString(currentLang));
         } else {
             progressBar.classList.add('indeterminate');
             progressBar.classList.remove('done');
             progressBar.style.width = '100%';
-            progressSub.textContent = 'Подготовка...';
+            progressSub.textContent = t('progress_preparing');
         }
         showPill('running', t('pill_enriching').replace('{0}', stepLabel));
 
@@ -332,23 +339,26 @@ function applyState(state) {
         continueEnrichBtn.disabled = false;
         cancelEnrichBtn.disabled = false;
 
-        const stepLabel = state.enrichStep === 'social' ? 'Social Networks' : 'Panels';
+        const stepLabel = state.enrichStep === 'extras' ? t('txt_social') : t('txt_panels');
         const done = state.enrichDone || 0;
         const total = state.enrichTotal || 0;
 
         progressLabel.textContent = t('progress_paused').replace('{0}', stepLabel);
-        progressCount.textContent = `${done.toLocaleString('ru-RU')} / ${total.toLocaleString('ru-RU')}`;
+        progressCount.textContent = `${done.toLocaleString(currentLang)} / ${total.toLocaleString(currentLang)}`;
 
         if (total > 0) {
             const pct = Math.min(100, Math.round(done / total * 100));
             progressBar.classList.remove('indeterminate', 'done');
             progressBar.style.width = pct + '%';
-            progressSub.textContent = `${pct}% — ${done.toLocaleString('ru-RU')} из ${total.toLocaleString('ru-RU')} каналов`;
+            progressSub.textContent = t('progress_enrich_sub')
+                .replace('{0}', pct)
+                .replace('{1}', done.toLocaleString(currentLang))
+                .replace('{2}', total.toLocaleString(currentLang));
         } else {
             progressBar.classList.add('indeterminate');
             progressBar.classList.remove('done');
             progressBar.style.width = '100%';
-            progressSub.textContent = 'Приостановлено';
+            progressSub.textContent = t('progress_stopped');
         }
         showPill('warning', t('pill_paused'));
 
@@ -406,7 +416,7 @@ function resetToIdle() {
     enrichPausedButtons.style.display = 'none';
     collectBtn.style.display = 'flex';
     collectBtn.disabled = false;
-    collectBtn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Собрать и скачать`;
+    collectBtn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> ${t('btn_collect')}`;
     statusPill.style.display = 'none';
 }
 
@@ -425,7 +435,7 @@ stopBtn.addEventListener('click', () => {
 finishBtn.addEventListener('click', () => {
     stopBtn.disabled = true;
     finishBtn.disabled = true;
-    finishBtn.textContent = 'Завершаем...';
+    finishBtn.textContent = t('btn_finishing');
     showPill('running', t('pill_preparing'));
     chrome.runtime.sendMessage({ action: 'finish_collection' }, () => {
         // background will pass to content.js → content.js will send collection_done
@@ -474,7 +484,7 @@ collectBtn.addEventListener('click', async () => {
     // Reset control buttons before start
     stopBtn.disabled = false;
     finishBtn.disabled = false;
-    finishBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Download now`;
+    finishBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> ${t('btn_finish')}`;
 
     // Apply initial state
     applyState({ phase: 'running', collected: 0, target: options.maxStreams, error: null });
@@ -485,7 +495,7 @@ collectBtn.addEventListener('click', async () => {
 // ─── STOP ENRICHMENT Button ─────────────────────────────────
 stopEnrichBtn.addEventListener('click', () => {
     stopEnrichBtn.disabled = true;
-    stopEnrichBtn.innerHTML = 'Приостановка...';
+    stopEnrichBtn.textContent = t('btn_pausing');
     showPill('running', t('pill_pausing'));
     chrome.runtime.sendMessage({ action: 'stop_enrich' });
 });
@@ -528,7 +538,7 @@ downloadBtn.addEventListener('click', () => {
         start: document.getElementById('format_starttime').value,
         duration: document.getElementById('format_duration').value
     };
-    chrome.runtime.sendMessage({ action: 'download_last_data', format: currentFormat, fields: currentFields, timeFormat: currentTimeFormat, sortDir: currentSort });
+    chrome.runtime.sendMessage({ action: 'download_last_data', format: currentFormat, fields: currentFields, timeFormat: currentTimeFormat, sortDir: currentSort, lang: currentLang });
 });
 
 resetBtn.addEventListener('click', () => {

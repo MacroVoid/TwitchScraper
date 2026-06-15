@@ -285,7 +285,7 @@ async function fetchChannelExtrasBatch(logins) {
 }
 
 // ─── Inject download into Twitch tab ──────────────────────────────────────
-function triggerDownload(data, format, filename, fields, sortDir, timeFormat) {
+function triggerDownload(data, format, filename, fields, sortDir, timeFormat, lang) {
     // fields — object with boolean flags (what to show)
     const f = fields || {
         channel: true, category: true, tags: true, viewers: true,
@@ -293,6 +293,39 @@ function triggerDownload(data, format, filename, fields, sortDir, timeFormat) {
         description: true, social: true, panels: true, starttime: true, duration: true
     };
     const tf = timeFormat || { start: 'iso', duration: 'hms' };
+    const locale = lang || 'ru';
+
+    const labels = locale === 'en' ? {
+        channel: 'Channel',
+        category: 'Category',
+        viewers: 'Viewers',
+        followers: 'Followers',
+        language: 'Language',
+        tags: 'Tags',
+        url: 'URL',
+        startTime: 'Start Time',
+        duration: 'Duration',
+        description: 'Description',
+        social: 'Social Networks'
+    } : {
+        channel: 'Канал',
+        category: 'Категория',
+        viewers: 'Зрители',
+        followers: 'Фолловеры',
+        language: 'Язык',
+        tags: 'Теги',
+        url: 'Ссылка',
+        startTime: 'Время начала',
+        duration: 'Продолжительность',
+        description: 'Описание',
+        social: 'Соц. сети'
+    };
+
+    const docHeader = locale === 'en' ? '# Collected Twitch Streams\n\n' : '# Собранные трансляции Twitch\n\n';
+    const itemPrefix = locale === 'en' ? 'Stream' : 'Запись';
+    const descSummary = locale === 'en' ? 'Expand description' : 'Развернуть описание';
+    const panelsHeader = locale === 'en' ? 'Channel Panels:' : 'Панели канала:';
+    const panelsSummary = locale === 'en' ? 'Expand panels' : 'Развернуть панели';
 
     // Function to format start time
     const formatStart = (isoString) => {
@@ -358,28 +391,28 @@ function triggerDownload(data, format, filename, fields, sortDir, timeFormat) {
         content = JSON.stringify(filtered, null, 2);
         mimeType = 'application/json';
     } else {
-        content = '# Собранные трансляции Twitch\n\n';
+        content = docHeader;
         data.forEach((s, i) => {
-            const title = f.title ? (s.title || '—') : `Запись #${i + 1}`;
+            const title = f.title ? (s.title || '—') : `${itemPrefix} #${i + 1}`;
             content += `## ${i + 1}. ${title}\n\n`;
-            if (f.channel   && s.channel)                    content += `- **Channel:** ${s.channel}\n`;
-            if (f.category  && s.category)                   content += `- **Category:** ${s.category}\n`;
-            if (f.viewers   && s.viewers     !== undefined)   content += `- **Viewers:** ${s.viewers}\n`;
-            if (f.followers && s.followers   !== undefined)   content += `- **Followers:** ${s.followers}\n`;
-            if (f.language  && s.language)                   content += `- **Language:** ${s.language}\n`;
-            if (f.tags      && s.tags?.length)               content += `- **Tags:** ${s.tags.join(', ')}\n`;
-            if (f.url       && s.url)                        content += `- **URL:** ${s.url}\n`;
+            if (f.channel   && s.channel)                    content += `- **${labels.channel}:** ${s.channel}\n`;
+            if (f.category  && s.category)                   content += `- **${labels.category}:** ${s.category}\n`;
+            if (f.viewers   && s.viewers     !== undefined)   content += `- **${labels.viewers}:** ${s.viewers}\n`;
+            if (f.followers && s.followers   !== undefined)   content += `- **${labels.followers}:** ${s.followers}\n`;
+            if (f.language  && s.language)                   content += `- **${labels.language}:** ${s.language}\n`;
+            if (f.tags      && s.tags?.length)               content += `- **${labels.tags}:** ${s.tags.join(', ')}\n`;
+            if (f.url       && s.url)                        content += `- **${labels.url}:** ${s.url}\n`;
             
-            if (f.starttime && s.createdAt)                  content += `- **Start Time:** ${formatStart(s.createdAt)}\n`;
-            if (f.duration  && s.createdAt)                  content += `- **Duration:** ${formatDuration(s.createdAt)}\n`;
+            if (f.starttime && s.createdAt)                  content += `- **${labels.startTime}:** ${formatStart(s.createdAt)}\n`;
+            if (f.duration  && s.createdAt)                  content += `- **${labels.duration}:** ${formatDuration(s.createdAt)}\n`;
 
             if (f.description && s.description) {
-                content += `- **Description:**\n<details>\n<summary>Развернуть описание</summary>\n<blockquote>\n${s.description}\n</blockquote>\n</details>\n`;
+                content += `- **${labels.description}:**\n<details>\n<summary>${descSummary}</summary>\n<blockquote>\n${s.description}\n</blockquote>\n</details>\n`;
             }
 
             // Social networks
             if (f.social && s.social?.length) {
-                content += `\n**Social Networks:**\n\n`;
+                content += `\n**${labels.social}:**\n\n`;
                 s.social.forEach(sm => {
                     const label = sm.title || sm.name || sm.url;
                     content += `- [${label}](${sm.url})  \n`;
@@ -389,7 +422,7 @@ function triggerDownload(data, format, filename, fields, sortDir, timeFormat) {
 
             // Panels — beautiful Markdown without document headers
             if (f.panels && s.panels?.length) {
-                content += `\n**Panels канала:**\n<details>\n<summary>Развернуть панели (${s.panels.length})</summary>\n<blockquote>\n\n`;
+                content += `\n**${panelsHeader}**\n<details>\n<summary>${panelsSummary} (${s.panels.length})</summary>\n<blockquote>\n\n`;
                 s.panels.forEach((p, idx) => {
                     if (p.title && p.linkURL) {
                         content += `**[${p.title}](${p.linkURL})**  \n`;
@@ -426,13 +459,13 @@ function triggerDownload(data, format, filename, fields, sortDir, timeFormat) {
     setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 500);
 }
 
-function downloadData(data, format, tabId, fields, sortDir, timeFormat) {
+function downloadData(data, format, tabId, fields, sortDir, timeFormat, lang) {
     if (!data || data.length === 0) { setIdle(); return; }
     const filename = `twitch_streams_${Date.now()}.${format}`;
     chrome.scripting.executeScript({
         target: { tabId },
         func: triggerDownload,
-        args: [data, format, filename, fields, sortDir, timeFormat]
+        args: [data, format, filename, fields, sortDir, timeFormat, lang]
     }).catch(e => console.error("Download inject error:", e));
 }
 
@@ -776,6 +809,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 const format = message.format || res.scrapeMeta.format;
                 const fields = message.fields || null;
                 let data = res.scrapedData;
+                const lang = message.lang || 'ru';
 
                 const tf = message.timeFormat || res.scrapeMeta.timeFormat || { start: 'iso', duration: 'hms' };
                 const needEnrich = fields && (
@@ -798,7 +832,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 } else {
                     // Enrichment not needed (already done or cancelled) — download immediately
                     const sortDir = message.sortDir || res.scrapeMeta.sortDir || 'desc';
-                    downloadData(data, format, res.scrapeMeta.tabId, fields, sortDir, tf);
+                    downloadData(data, format, res.scrapeMeta.tabId, fields, sortDir, tf, lang);
                 }
             }
         });

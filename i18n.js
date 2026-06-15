@@ -86,6 +86,12 @@ const I18N = {
         // Misc texts
         "txt_social": "Соц. сети",
         "txt_panels": "Панели",
+        "progress_running_sub_unlimited": "Собрано {0} стримов...",
+        "progress_running_sub_limited": "{0}% — {1} из {2} стримов",
+        "progress_enrich_sub": "{0}% — {1} из {2} каналов",
+        "btn_finishing": "Завершаем...",
+        "btn_pausing": "Приостановка...",
+        "btn_stopping": "Останавливаем...",
         "alert_reset": "Вы уверены, что хотите полностью сбросить расширение? Это очистит кэш, настройки и текущий прогресс.",
         "alert_empty_logs": "Логи пока пусты."
     },
@@ -176,6 +182,12 @@ const I18N = {
         // Misc texts
         "txt_social": "Socials",
         "txt_panels": "Panels",
+        "progress_running_sub_unlimited": "Collected {0} streams...",
+        "progress_running_sub_limited": "{0}% — {1} of {2} streams",
+        "progress_enrich_sub": "{0}% — {1} of {2} channels",
+        "btn_finishing": "Finishing...",
+        "btn_pausing": "Pausing...",
+        "btn_stopping": "Stopping...",
         "alert_reset": "Are you sure you want to completely reset the extension? This will clear cache, settings, and current progress.",
         "alert_empty_logs": "Logs are currently empty."
     }

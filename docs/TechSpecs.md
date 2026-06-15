@@ -1,34 +1,37 @@
-# Twitch Scraper — Technical Documentation (v2.0)
+# Twitch Scraper — Technical Documentation
 
-## 1. Overview and Purpose
+## 1. Overview
 
-**Twitch Scraper** is a browser extension (Google Chrome Manifest V3) designed to extract live stream data from any category on Twitch (e.g., `twitch.tv/directory/category/minecraft`).
+**Twitch Scraper** is a browser extension (Google Chrome, Manifest V3) designed to extract live stream data from any category on Twitch (e.g., `twitch.tv/directory/category/minecraft`).
 
-It bypasses Twitch's protection mechanisms (CORS, Integrity tokens) by passively intercepting network headers from a legitimate user session and autonomously performing a series of requests to the undocumented Twitch GraphQL (GQL) API. The collected data (basic stream info, social media links, and channel panels) is aggregated and exported to the user in `JSON` or `Markdown` formats.
+The extension bypasses Twitch's protection mechanisms (CORS, Integrity tokens) by passively intercepting network headers from a legitimate user session, then autonomously issuing a series of requests to the undocumented Twitch GraphQL (GQL) API. The collected data — basic stream info, social media links, and channel panels — is aggregated and exported as `JSON` or `Markdown`.
 
 ---
 
 ## 2. Architecture and File Structure
 
-The extension is designed to offload all heavy lifting to an isolated background process, preventing performance impact on the Twitch page while bypassing cross-origin request limitations.
+All heavy processing is offloaded to an isolated background process, which keeps the Twitch page unaffected and works around cross-origin request limitations.
 
 | File | Description |
 |------|-------------|
-| `manifest.json` | Manifest V3. Declares permissions: `webRequest` (for passive header interception), `storage` (for state and data persistence), `scripting` (for injecting the download script), and host permissions for `*.twitch.tv` and `gql.twitch.tv`. |
-| `background.js` | The core engine (Service Worker). Handles all business logic: intercepts headers, performs GQL requests, bypasses Twitch pagination bugs, batches social media and panel requests, manages the state machine (pause/cancel), and saves intermediate results to `chrome.storage.local`. |
-| `popup.html` | User interface layout. Includes filtering settings, language selectors, limits, export format choices, a progress display system, and a debug logging panel. |
-| `popup.js` | UI logic. Sends messages to `background.js` (`start_collection`, `stop_collection`, `resume_enrich`, `download_last_data`, etc.) and reactively updates the UI (progress bars, status pills) upon receiving `state_update` messages from the Service Worker. |
-| `content.js` | Minimal Content Script. Historically used for making requests, but in v2.0 it is retained solely as a safe injection point: `background.js` uses the `scripting` API to execute the `triggerDownload` function inside the Twitch page context to generate a `Blob` and initiate the file download. |
+| `manifest.json` | Manifest V3. Declares permissions: `webRequest` (passive header interception), `storage` (state and data persistence), `scripting` (download script injection), and host permissions for `*.twitch.tv` and `gql.twitch.tv`. |
+| `background.js` | Core engine (Service Worker). Handles all business logic: header interception, GQL requests, Twitch pagination quirk handling, social media and panel request batching, state machine management (pause/cancel), and intermediate result persistence to `chrome.storage.local`. |
+| `popup.html` | UI layout. Includes filter settings, language selectors, limits, export format options, a progress display, and a debug log panel. |
+| `popup.js` | UI logic. Sends messages to `background.js` (`start_collection`, `stop_collection`, `resume_enrich`, `download_last_data`, etc.) and reactively updates the UI (progress bars, status indicators) on `state_update` messages from the Service Worker. |
+| `content.js` | Minimal Content Script. Previously used for making requests; in v2.0 it serves solely as a safe injection point — `background.js` uses the `scripting` API to execute `triggerDownload` inside the Twitch page context to generate a `Blob` and initiate the file download. |
 
 ---
 
 ## 3. Header Interception and Twitch Protection Bypass
 
-### 3.1 Why is interception necessary?
-Twitch's GQL API (`gql.twitch.tv/gql`) is protected from automated scripts by the **Integrity Check** system. Every request requires a `Client-Integrity` header — a token cryptographically signed by an obfuscated Twitch script using the user's browser fingerprint. The extension cannot generate this on its own.
+### 3.1 Why interception is necessary
 
-### 3.2 Passive Interception (`webRequest`)
-`background.js` utilizes the `chrome.webRequest.onSendHeaders` listener. When the Twitch website (open in a tab) makes a legitimate GQL request to render the interface, the extension intercepts the following outgoing headers "on the fly":
+Twitch's GQL API (`gql.twitch.tv/gql`) is protected from automated scripts by the **Integrity Check** system. Every request requires a `Client-Integrity` header — a token cryptographically signed by an obfuscated Twitch script using the user's browser fingerprint. The extension cannot generate this independently.
+
+### 3.2 Passive interception (`webRequest`)
+
+`background.js` uses the `chrome.webRequest.onSendHeaders` listener. When the Twitch website (open in a tab) makes a legitimate GQL request as part of normal page rendering, the extension intercepts the following outgoing headers in transit:
+
 - `Client-Id`
 - `Client-Integrity`
 - `Authorization`
@@ -36,46 +39,54 @@ Twitch's GQL API (`gql.twitch.tv/gql`) is protected from automated scripts by th
 - `Client-Version`
 - `Client-Session-Id`
 
-### 3.3 Storage and Normalization
-Intercepted headers are saved in `chrome.storage.local`. Because JavaScript objects are case-sensitive, earlier versions experienced `400 Bad Request` errors due to duplicates (e.g., `Client-ID` and `Client-Id`).
-In v2.0, a strict normalization mask (`HEADER_KEY_MAP`) is used. Headers are always converted to standard Pascal-Kebab-Case, and duplicates are removed. The `ensureHeadersLoaded()` function guarantees the extension always uses the freshest working tokens. If a token expires, the extension throws an error prompting the user to simply press `F5` on the Twitch tab to capture a new token.
+### 3.3 Storage and normalization
+
+Intercepted headers are saved to `chrome.storage.local`. Since JavaScript objects are case-sensitive, earlier versions produced `400 Bad Request` errors caused by duplicate header variants (e.g., `Client-ID` vs. `Client-Id`).
+
+In v2.0, a strict normalization map (`HEADER_KEY_MAP`) is applied. Headers are always converted to standard Pascal-Kebab-Case and deduplicated. The `ensureHeadersLoaded()` function ensures the extension always uses the most recent valid tokens. If a token expires, the extension surfaces an error prompting the user to press `F5` on the Twitch tab to capture a fresh set.
 
 ---
 
-## 4. Stream Collection: GQL API and Quirks
+## 4. Stream Collection: GQL API and Known Quirks
 
-Collection is initiated by sending the `start_collection` message. `background.js` determines the category `slug` from the active tab's URL and starts the `DirectoryPageGame` request loop.
+Collection is initiated by the `start_collection` message. `background.js` extracts the category `slug` from the active tab URL and begins the `DirectoryPageGame` request loop.
 
-### 4.1 Searching by Slug
-The request is formulated using the `game(slug: $slug)` argument rather than `game(name: $slug)`. This is critical because searching by Name fails for games with complex titles and special characters, whereas the `slug` always accurately identifies the directory.
+### 4.1 Searching by slug
 
-### 4.2 Language Filtering Quirk
-If the user selects the "🌐 All Languages" filter, the extension passes the `broadcasterLanguages: []` parameter (an empty array). This forces Twitch to return streams in absolutely all languages. When specific languages are selected (e.g., `RU`, `EN`), the array is populated with their respective codes.
+Requests use the `game(slug: $slug)` argument rather than `game(name: $slug)`. Searching by name fails for games with complex titles or special characters; the `slug` always resolves the directory correctly.
 
-### 4.3 Twitch Pagination Bug (VIEWER_COUNT_ASC) and Sorting
-Twitch has a database bug:
-- When sorting "Ascending" (`VIEWER_COUNT_ASC`), the database generates unstable cursors. As a result, the output loops, duplicating smaller streams.
-- When reaching streams with 0 viewers, Twitch encodes the stream's start Unix timestamp as the cursor (e.g., `s = 1781455831`). On requesting the next page, Twitch attempts to find a stream where `viewersCount > 1.78 billion` and returns an empty list. Collection abruptly stops.
+### 4.2 Language filter behavior
 
-**Solution in the Extension (v2.0):**
-If the user starts collection with **"No limit"** (collect entire category), the extension ignores the UI setting for the server request and _always_ requests with the `VIEWER_COUNT` parameter (descending). This ensures stable, fast server pagination without drops. The sorting direction chosen by the user is applied **locally** in memory right before exporting the file.
+When the user selects "All Languages", the extension sends `broadcasterLanguages: []` (an empty array), which instructs Twitch to return streams in all languages. When specific languages are selected (e.g., `RU`, `EN`), the array is populated with their respective codes.
 
-### 4.4 Loop Protection and Rate Limiting
-The collection loop includes a `150ms` delay between pages. If Twitch hangs and returns the identical `cursor` and last stream `id` for several consecutive pages, the extension detects the infinite loop and aborts it.
+### 4.3 Twitch pagination bug (`VIEWER_COUNT_ASC`) and sort order
 
-### 4.5 Parsing Restricted (Sub-Only) Streams
-The UI provides an "Include Sub-Only" setting. If active, the `includeRestricted: [SUB_ONLY_LIVE]` flag is added to the GraphQL request parameters. This forces Twitch to return hidden streams that are only viewable by paying subscribers of that channel.
+Twitch has a known database issue:
+
+- With ascending sort (`VIEWER_COUNT_ASC`), the database produces unstable cursors, causing the response to loop and return duplicate low-viewer streams.
+- Upon reaching streams with 0 viewers, Twitch encodes the stream's Unix start timestamp as the cursor (e.g., `s = 1781455831`). The next page request then looks for streams where `viewersCount > 1.78 billion` and returns an empty result set, abruptly ending collection.
+
+**Solution in v2.0:** When the user runs collection with no stream limit (full category), the extension overrides the UI setting for server requests and always fetches with `VIEWER_COUNT` (descending). This ensures stable, uninterrupted server-side pagination. The user's chosen sort order is then applied **in memory** immediately before export.
+
+### 4.4 Loop detection and rate limiting
+
+The collection loop includes a 150ms delay between pages. If Twitch stalls and returns the same `cursor` and last stream `id` across several consecutive pages, the extension detects the infinite loop and aborts.
+
+### 4.5 Sub-only streams
+
+The UI includes an "Include Sub-Only" option. When enabled, `includeRestricted: [SUB_ONLY_LIVE]` is added to the GraphQL request parameters, causing Twitch to return streams that are otherwise only visible to paying channel subscribers.
 
 ---
 
-## 5. Request and Response Structures (GQL Specification)
+## 5. Request and Response Structures (GQL Reference)
 
-The extension interacts with the `https://gql.twitch.tv/gql` endpoint via the `POST` method. The request body is always sent in JSON format and contains `query` (or `operationName` for persisted queries) and `variables` fields.
+The extension communicates with `https://gql.twitch.tv/gql` via `POST`. The request body is always JSON and contains `query` (or `operationName` for persisted queries) and `variables` fields.
 
-### 5.1 Main Directory Request (DirectoryPageGame)
+### 5.1 Directory stream list (`DirectoryPageGame`)
+
 Used to retrieve the list of live streams.
 
-**Request (Payload):**
+**Request:**
 ```json
 {
   "query": "query DirectoryPageGame($slug: String!, $cursor: Cursor) { game(slug: $slug) { streams(first: 100, after: $cursor, options: { sort: VIEWER_COUNT, broadcasterLanguages: [\"EN\"], recommendationsContext: { platform: \"web\" }, systemFilters: [] }) { pageInfo { hasNextPage } edges { cursor node { id title viewersCount broadcaster { id login displayName description followers { totalCount } } freeformTags { name } game { name displayName } } } } } }",
@@ -86,8 +97,8 @@ Used to retrieve the list of live streams.
 }
 ```
 
-**Response:**
-Returns deeply nested JSON. Data resides in `data.game.streams.edges`. Each edge contains a `cursor` (required for the next page request) and a `node` (information about the stream itself).
+**Response:** Nested JSON. Stream data is in `data.game.streams.edges`. Each edge contains a `cursor` (for the next page request) and a `node` (stream details).
+
 ```json
 {
   "data": {
@@ -119,10 +130,11 @@ Returns deeply nested JSON. Data resides in `data.game.streams.edges`. Each edge
 }
 ```
 
-### 5.2 Social Media Request (GetChannelSocial)
-Twitch does not support batching social media natively within the directory query, so the extension sends an array of queries (GraphQL Batching).
+### 5.2 Social media (`GetChannelSocial`)
 
-**Request (Batch array of objects):**
+Social media data is not available in the directory query, so the extension uses GraphQL batching — multiple query objects in a single POST array.
+
+**Request (batch):**
 ```json
 [
   {
@@ -136,7 +148,8 @@ Twitch does not support batching social media natively within the directory quer
 ]
 ```
 
-**Response:** Array of responses. Social media fields reside in `data.user.channel.socialMedias`.
+**Response:** Array of responses. Social media fields are in `data.user.channel.socialMedias`.
+
 ```json
 [
   {
@@ -155,8 +168,9 @@ Twitch does not support batching social media natively within the directory quer
 ]
 ```
 
-### 5.3 Channel Panels Request (ChannelPanels)
-Uses Twitch's built-in `operationName` and `persistedQuery` hash instead of sending the full query text. An array is sent to batch by `id` (the unique channel identifier, not login).
+### 5.3 Channel panels (`ChannelPanels`)
+
+Uses Twitch's `operationName` with a `persistedQuery` hash rather than a full inline query. Requests are batched by channel `id` (numeric identifier, not login).
 
 **Request:**
 ```json
@@ -174,7 +188,8 @@ Uses Twitch's built-in `operationName` and `persistedQuery` hash instead of send
 ]
 ```
 
-**Response:** Data resides in `data.user.panels`.
+**Response:** Data is in `data.user.panels`.
+
 ```json
 [
   {
@@ -198,94 +213,109 @@ Uses Twitch's built-in `operationName` and `persistedQuery` hash instead of send
 
 ---
 
-## 6. Data Enrichment (Social Media, Panels, and Uptime)
+## 6. Data Enrichment (Social Media, Panels, Uptime)
 
-Data regarding social networks, channel panels, and exact stream uptime is unavailable or incomplete in the primary directory query. They must be collected via separate requests. This can be time-consuming, so an advanced batching and state management system is implemented.
+Social media links, channel panels, and stream uptime are either unavailable or incomplete in the primary directory query and must be fetched separately. The extension uses batching and a persistent state system to manage this efficiently.
 
-### 6.1 Batch Requests
-- **Socials**: Extracted via `GetChannelSocial`. Twitch allows combining queries. The extension gathers streamer logins in batches of **30** and makes one massive POST request.
-- **Panels**: Extracted via `ChannelPanels` using `userId`. Panels carry heavy payloads, so they are batched by **20**. Panels are sanitized of empty elements; only `title`, `linkURL`, `description`, and `altText` are retained.
-- **Uptime (Start Time & Duration)**: Stream metadata (`createdAt`) is fetched via additional GQL queries. This provides precise start times and enables accurate calculation of stream duration.
+### 6.1 Batch sizes and data handling
 
-### 6.2 Process Management (Pause, Resume, Cancel)
-- The `enrichData()` function is divided into manageable steps.
-- The user can press the **"Stop"** button. The process doesn't reset: `background.js` saves the current progress (`enrichDone`, `enrichTotal`) and the intermediate data array into `chrome.storage.local`, shifting the status to `enrich_paused`.
-- The **"Continue"** button re-invokes `enrichData()`, which reads the array from storage and resumes collection exclusively for channels where `social` / `panels` arrays are `undefined`.
-- The **"Cancel"** button forcefully replaces remaining `undefined` values with `null`. This marks the enrichment process as complete, and the missing fields are simply omitted from the final export.
+- **Socials:** Fetched via `GetChannelSocial` in batches of **30** logins per POST request.
+- **Panels:** Fetched via `ChannelPanels` in batches of **20** by channel `userId`. Panel data is filtered to retain only `title`, `linkURL`, `description`, and `altText`; empty entries are discarded.
+- **Uptime:** Stream metadata (`createdAt`) is fetched via additional GQL queries, providing precise start times and enabling accurate duration calculations.
+
+### 6.2 Pause, resume, and cancel
+
+- `enrichData()` is divided into discrete steps that check for interruption signals.
+- When the user clicks **Stop**, the current progress (`enrichDone`, `enrichTotal`) and the intermediate data array are saved to `chrome.storage.local`, and the status transitions to `enrich_paused`.
+- **Continue** re-invokes `enrichData()`, which reads from storage and resumes only for channels where `social` or `panels` are still `undefined`.
+- **Cancel** replaces all remaining `undefined` values with `null`, marking enrichment as complete. Fields left as `null` are omitted from the final export.
 
 ---
 
 ## 7. UI State Machine
 
-### 7.1 UI Persistence
-The entire user interface is reactive and persistent. Whenever checkbox states, languages, or formats change, `saveUISettings()` is called, storing the current configuration in `chrome.storage.local`. Upon reopening the extension, `loadUISettings()` instantly restores all parameters.
+### 7.1 Settings persistence
 
-### 7.2 Phase Management
-All logic in `popup.js` revolves around a reactive state machine. The service worker broadcasts `state_update` messages containing a state object:
+The UI is fully reactive and persistent. Any change to checkboxes, language selections, or format options triggers `saveUISettings()`, which writes the current configuration to `chrome.storage.local`. On next open, `loadUISettings()` restores all settings immediately.
+
+### 7.2 Phase management
+
+`popup.js` is driven by a reactive state machine. The Service Worker broadcasts `state_update` messages containing a state object:
 
 ```javascript
-{ 
-  phase: 'idle' | 'running' | 'enriching' | 'enrich_paused' | 'done' | 'error', 
-  collected: 450, 
-  target: 0, 
-  enrichStep: 'social', 
-  enrichDone: 150, 
+{
+  phase: 'idle' | 'running' | 'enriching' | 'enrich_paused' | 'done' | 'error',
+  collected: 450,
+  target: 0,
+  enrichStep: 'social',
+  enrichDone: 150,
   enrichTotal: 450,
-  error: null 
+  error: null
 }
 ```
 
-Depending on the `phase`, the UI logic in `popup.js` (`applyState` function):
-- Toggles the visibility of the progress bar and action buttons (Collect, Stop, Finish, Continue, Cancel, Download).
-- Changes the styling of the status pill (blue/yellow/red/green).
-- Animates the loading bar.
+The `applyState` function in `popup.js` responds to each `phase` by:
+
+- Showing or hiding the appropriate action buttons (Collect, Stop, Finish, Continue, Cancel, Download)
+- Updating the status indicator styling (blue / yellow / red / green)
+- Animating the progress bar
 
 ---
 
 ## 8. File Generation and Export
 
-Downloading does not occur automatically after collection (since the user may want to change the format). The "Download" button is responsible for exporting.
+Export is not triggered automatically after collection, since the user may want to change the format before downloading. The **Download** button initiates the export.
 
-### 8.1 Bypassing MV3 Memory Limits (Message Passing)
-In Manifest V3, transmitting massive data arrays (thousands of streams with long `description` strings) via the built-in `chrome.runtime.sendMessage` can crash the Service Worker due to message size constraints. Therefore, `background.js` does not generate the `Blob` file internally.
-Instead, via the `chrome.scripting.executeScript` API, it forwards the raw array as an argument into the `triggerDownload` function, which executes within the context of the open Twitch tab. The browser readily allocates memory for the webpage, where the function locally generates the `Blob` and triggers the download via an invisible `<a>` tag.
+### 8.1 Working around MV3 memory limits
 
-### 8.2 JSON Format
-The data array passes through a filter. If the user disabled the `Social` checkbox, or if they were not collected (remained `null` after cancellation), the `social` and `panels` keys are omitted from the JSON objects. Additionally, advanced time formatting preferences (e.g., ISO, Unix, GMT, local time, HH:MM:SS) are strictly applied to the exported start time and duration values.
+In Manifest V3, passing large data arrays (thousands of streams with long `description` strings) through `chrome.runtime.sendMessage` can crash the Service Worker due to message size constraints. To avoid this, `background.js` does not generate the `Blob` internally.
 
-### 8.3 Markdown Format
-The script generates beautiful, highly readable Markdown.
-- **Descriptions and panels** are wrapped in HTML tags `<details><summary>Expand...</summary><blockquote>...</blockquote></details>`. This prevents long texts from "breaking" the list layout.
-- **Socials** are output as hyperlinks: `[Name](URL)`.
-- **Panels** can contain complex formatting, so the extension correctly handles `title` + `linkURL` combinations and preserves line breaks in `description`.
+Instead, via `chrome.scripting.executeScript`, it passes the raw data array as an argument to the `triggerDownload` function, which runs inside the context of the open Twitch tab. The browser allocates memory within the page context, where the function creates the `Blob` and triggers the download via a programmatically clicked `<a>` element.
 
-Then a `Blob` is created, a temporary `ObjectURL` is generated, the `<a>` tag is clicked programmatically, and the file is saved to the user's disk.
+### 8.2 JSON export
 
----
+Before export, the data array is filtered according to the user's settings. If `Social` or `Panels` were disabled or cancelled (values remain `null`), the corresponding keys are omitted from each JSON object. Time format preferences (ISO 8601, Unix Timestamp, GMT, local time, HH:MM:SS, etc.) are applied to `startTime` and `duration` fields at this stage.
 
-## 9. Debug Logging and Cache Management
+### 8.3 Markdown export
 
-### 9.1 Ring Buffer for Logs
-For bug investigation, `background.js` includes an `addLog()` function.
-It adds a timestamped entry to the `_logsBuffer` array. The buffer is capped at 500 entries (old ones are evicted). The buffer is stored in `chrome.storage.local`.
-Everything is logged: HTTP response statuses, captured headers, cursors, and GQL parameters.
+The Markdown output is structured for readability:
 
-In the interface (accessed via the "Bug" icon in the header), the user can click **"Download debug logs"**, which exports this buffer to a text file `twitch_scraper_debug_<timestamp>.txt`. Logging can also be disabled to save browser memory.
+- Long content (`description`, panels) is wrapped in `<details><summary>Expand...</summary><blockquote>...</blockquote></details>` to prevent layout disruption.
+- Social media links are rendered as `[Name](URL)`.
+- Panel entries handle `title` + `linkURL` combinations and preserve line breaks within `description`.
 
-### 9.2 Full Emergency Reset
-The **"Emergency Full Reset"** button sends the `full_reset` signal.
-`background.js`:
-1. Forcefully terminates all active `while` and `for` loops.
-2. Clears all state variables (`_isRunning`, `_shouldStopEnrich`, etc.).
-3. Resets the `twitchHeaders` object to default invalid values.
-4. Invokes `chrome.storage.local.clear()`, wiping the entire cache, logs, and saved settings.
-5. The interface reloads into a pristine `idle` state. This guarantees that any "stuck" bug or corrupted extension cache is completely eradicated with a single click.
+Once the content is assembled, a `Blob` is created, a temporary `ObjectURL` is generated, and the download is triggered via a programmatic click on an `<a>` element.
 
 ---
 
-## 10. License & Credits
+## 9. Debug Logging and Reset
 
-This project is distributed under the free **MIT License** (see the [LICENSE](LICENSE) file for full details).
+### 9.1 Log buffer
 
-### Third-Party Resources:
-The extension utilizes icons from the **[Lucide](https://lucide.dev/)** project (licensed under the **ISC License**) and icons derived from the **[Feather](https://feathericons.com/)** project (licensed under the **MIT License**). The texts of these licenses are also included in the [LICENSE](LICENSE) file in compliance with their usage terms.
+`background.js` includes an `addLog()` function for diagnostics. Log entries (with timestamps) are appended to the `_logsBuffer` array, which is capped at 500 entries — older entries are dropped as new ones arrive. The buffer is persisted in `chrome.storage.local`.
+
+Logged events include: HTTP response statuses, captured headers, pagination cursors, and GQL parameters.
+
+The debug panel (accessible via the bug icon in the header) provides a **Download debug logs** button, which exports the buffer to `twitch_scraper_debug_<timestamp>.txt`. Logging can be disabled to reduce browser memory usage.
+
+### 9.2 Emergency reset
+
+The **Emergency Reset** button sends a `full_reset` signal to `background.js`, which:
+
+1. Terminates all active `while` and `for` loops
+2. Clears all runtime state variables (`_isRunning`, `_shouldStopEnrich`, etc.)
+3. Resets `twitchHeaders` to default invalid values
+4. Calls `chrome.storage.local.clear()`, removing all cached data, logs, and saved settings
+5. Returns the UI to a clean `idle` state
+
+This provides a reliable single-action recovery from any stuck state or corrupted cache.
+
+---
+
+## 10. License and Legal
+
+The source code is distributed under the **MIT License**. The full license text is available in the [LICENSE](LICENSE) file.
+
+UI icons are sourced from the **[Lucide](https://lucide.dev/)** project (ISC License) and the **[Feather](https://feathericons.com/)** project (MIT License). The texts of both third-party licenses are included in the [LICENSE](LICENSE) file in accordance with their respective terms.
+
+> **Disclaimer.** This extension uses the user's active browser session to interact with Twitch's internal API. The developer is not responsible for any consequences arising from its use, including potential restrictions imposed by the platform. It is the user's sole responsibility to ensure compliance with the [Twitch Terms of Service](https://www.twitch.tv/p/legal/terms-of-service/).

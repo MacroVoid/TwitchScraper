@@ -2,40 +2,41 @@
 
 > 🇷🇺 [Русская версия README](README.ru.md) | 📘 [Technical Documentation](https://github.com/MacroVoid/TwitchScraper/wiki)
 
-**Twitch Scraper** is a powerful and lightweight browser extension (Manifest V3) that allows you to easily extract live stream data from any category on Twitch.tv and export it into structured JSON or Markdown files.
+A browser extension (Manifest V3) for collecting live stream data from any category on Twitch.tv and exporting it as JSON or Markdown.
 
-![Twitch Scraper Preview](https://lucide.dev/logo.svg) <!-- You can replace this with an actual screenshot of the extension -->
+## Features
 
-## ✨ Features
+- Collects stream data from any Twitch category with automatic pagination handling
+- Exports not just basic fields (title, viewer count), but extended data as well: social media links, channel panels (rules, Discord, about sections), stream start time and duration
+- Output to JSON for programmatic use or to Markdown for human-readable results
+- Flexible time format options: ISO 8601, Unix Timestamp, GMT, local time (12/24h), HH:MM:SS or total seconds
+- Interface available in English and Russian
 
-- **One-Click Export**: Quickly scrape thousands of live streams from any game or directory.
-- **Bypass Limitations**: Automatically handles Twitch's pagination and safely gathers data using your active session.
-- **Rich Data Enrichment**: Gather not just stream titles and viewers, but also deep information like social media links and channel panels (rules, discord links, about me, etc).
-- **Format Options**: Export cleanly formatted JSON files for programmatic use, or beautiful Markdown files for easy reading.
-- **Multilingual Support**: The extension interface supports English and Russian languages out of the box.
+## Usage
 
-## 🚀 How to Use
+1. Install the extension in a Chromium-based browser (Chrome, Edge, Brave)
+2. Navigate to any Twitch category page, e.g. `twitch.tv/directory/category/minecraft`
+3. Open Twitch Scraper via its icon in the browser toolbar
+4. Select the data fields you want to collect and click **Collect**
+5. Wait for the process to complete, or click **Finish Early** to download whatever has been collected so far
 
-1. **Install** the extension in your Chromium-based browser (Chrome, Edge, Brave).
-2. **Open** any Twitch category page (for example, `twitch.tv/directory/category/minecraft`).
-3. Click the **Twitch Scraper** icon in your browser toolbar.
-4. Select the data fields you want to collect and click the **Collect** button.
-5. Wait for the process to finish, or click **Finish Early** to stop and download what has been collected so far.
+## Installation from Source
 
-## ⚙️ Build and Installation (Developer Mode)
+1. Clone or download this repository
+2. Open `chrome://extensions/`
+3. Enable **Developer mode** in the top-right corner
+4. Click **Load unpacked** and select the extension folder
 
-1. Clone or download this repository.
-2. Open your browser and go to `chrome://extensions/`.
-3. Enable **Developer mode** in the top right corner.
-4. Click **Load unpacked** and select the folder containing this extension.
-5. The extension is now installed and ready to use!
+## Technical Documentation
 
-## 📖 Technical Documentation
+Implementation details — CORS bypass, GraphQL request batching, memory management via background service workers — are covered in the project wiki:
 
-If you are interested in how the extension bypasses CORS, handles GraphQL batching, and manages memory limits via background service workers, please refer to our detailed technical wiki:
+[→ Open Wiki](https://github.com/MacroVoid/TwitchScraper/wiki)
 
-- **[Wiki](https://github.com/MacroVoid/TwitchScraper/wiki)**
+## License and Legal
 
-## 📄 License
+The source code is distributed under the **MIT License**. The full license text is available in the [LICENSE](LICENSE) file.
 
-This project is licensed under the **MIT License**. See the [LICENSE](LICENSE) file for more details. Icons used in the UI are provided by the [Lucide](https://lucide.dev/) project under the ISC License.
+UI icons are provided by the [Lucide](https://lucide.dev/) project and are used in accordance with the **ISC License**.
+
+> **Disclaimer.** This extension uses the user's active browser session to interact with the Twitch public API. The developer is not responsible for any consequences arising from the use of this tool, including potential restrictions imposed by the platform. It is the user's sole responsibility to ensure compliance with the [Twitch Terms of Service](https://www.twitch.tv/p/legal/terms-of-service/).

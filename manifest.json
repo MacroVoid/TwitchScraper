@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Twitch Stream Scraper",
-  "version": "2.1",
+  "version": "2.1.1",
   "description": "Извлекает данные о трансляциях со страниц категорий Twitch.",
   "permissions": [
     "activeTab",

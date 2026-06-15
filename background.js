@@ -420,23 +420,7 @@ function computeStats(data) {
     };
 }
 
-// ─── CSV escaping (RFC 4180) (C2) ───────────────────────────────────────────
-function csvEscape(value) {
-    if (value === null || value === undefined) return '';
-    let str;
-    if (Array.isArray(value)) {
-        // tags / socials — join into a single cell
-        str = value.map(v => (typeof v === 'object' ? JSON.stringify(v) : String(v))).join(' | ');
-    } else if (typeof value === 'object') {
-        str = JSON.stringify(value);
-    } else {
-        str = String(value);
-    }
-    if (/[",\n\r]/.test(str)) {
-        return '"' + str.replace(/"/g, '""') + '"';
-    }
-    return str;
-}
+
 
 // ─── Inject download into Twitch tab ──────────────────────────────────────
 function triggerDownload(data, format, filename, fields, sortDir, timeFormat, lang) {
@@ -546,6 +530,24 @@ function triggerDownload(data, format, filename, fields, sortDir, timeFormat, la
         mimeType = 'application/json';
     } else if (format === 'csv') {
         // Build header from selected fields
+        
+        // ─── CSV escaping (RFC 4180) (C2) ───────────────────────────────────────────
+        const csvEscape = (value) => {
+            if (value === null || value === undefined) return '';
+            let str;
+            if (Array.isArray(value)) {
+                // tags / socials — join into a single cell
+                str = value.map(v => (typeof v === 'object' ? JSON.stringify(v) : String(v))).join(' | ');
+            } else if (typeof value === 'object') {
+                str = JSON.stringify(value);
+            } else {
+                str = String(value);
+            }
+            if (/[",\n\r]/.test(str)) {
+                return '"' + str.replace(/"/g, '""') + '"';
+            }
+            return str;
+        };
         const headerCells = [];
         const rowGetters = [];
         const addCol = (label, getter) => { headerCells.push(label); rowGetters.push(getter); };

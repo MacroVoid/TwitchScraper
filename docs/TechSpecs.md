@@ -132,7 +132,7 @@ Used to retrieve the list of live streams.
 
 ### 5.2 Channel extra data (`GetChannelExtras`)
 
-Social media links and stream start times (uptime) are not available in the main directory query, so the extension uses GraphQL batching to request them dynamically.
+Social media links and stream start times (uptime) are not available in the main directory query, so the extension uses GraphQL batching to request them separately.
 
 **Request (batch):**
 ```json
@@ -222,9 +222,8 @@ Social media links, channel panels, and stream uptime are either unavailable or 
 
 ### 6.1 Batch sizes and data handling
 
-- **Socials:** Fetched via `GetChannelSocial` in batches of **30** logins per POST request.
+- **Socials & Uptime:** Fetched together via `GetChannelExtras` in batches of **30** logins per POST request. Each response includes both the social media links and the stream start timestamp (`createdAt`), which is used to calculate duration.
 - **Panels:** Fetched via `ChannelPanels` in batches of **20** by channel `userId`. Panel data is filtered to retain only `title`, `linkURL`, `description`, and `altText`; empty entries are discarded.
-- **Uptime:** Stream metadata (`createdAt`) is fetched via additional GQL queries, providing precise start times and enabling accurate duration calculations.
 
 ### 6.2 Pause, resume, and cancel
 

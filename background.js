@@ -640,11 +640,19 @@ function triggerDownload(data, format, filename, fields, sortDir, timeFormat, la
     setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 500);
 }
 
-// ─── Filename with category slug + date (C3) ────────────────────────────────
+// ─── Filename with category slug + date + time (C3) ───────────────────────────
 function buildFilename(format, slug) {
-    const dateStr = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    const hh = String(now.getHours()).padStart(2, '0');
+    const min = String(now.getMinutes()).padStart(2, '0');
+    const ss = String(now.getSeconds()).padStart(2, '0');
+    
+    const dateTimeStr = `${yyyy}-${mm}-${dd} ${hh}_${min}_${ss}`;
     const safeSlug = (slug || 'streams').replace(/[^a-zA-Z0-9-_]/g, '_').slice(0, 40) || 'streams';
-    return `twitch_${safeSlug}_${dateStr}.${format}`;
+    return `twitch_${safeSlug}_${dateTimeStr}.${format}`;
 }
 
 function downloadData(data, format, tabId, fields, sortDir, timeFormat, lang, slug) {

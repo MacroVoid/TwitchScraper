@@ -1,6 +1,10 @@
-
 // --- Localization System (i18n) ---
 let currentLang = localStorage.getItem('appLang') || 'ru';
+
+// A2: locale for number formatting depends on the UI language, not hardcoded 'ru-RU'
+function localeString() {
+    return currentLang === 'en' ? 'en-US' : 'ru-RU';
+}
 
 /**
  * Translates a given key based on the current language.
@@ -60,6 +64,9 @@ document.querySelectorAll('.lang-option').forEach(opt => {
         collectBtn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> ${t('btn_collect')}`;
         finishBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> ${t('btn_finish')}`;
         downloadBtn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> ${t('btn_download_file')}`;
+        if (copyBtn) copyBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> ${t('btn_copy')}`;
+        // Re-render stats if visible so labels follow the new language
+        if (currentStats) renderStats(currentStats);
     });
 });
 
@@ -122,7 +129,11 @@ const statusPill = document.getElementById('status-pill');
 const langList = document.getElementById('lang_list');
 const doneButtons = document.getElementById('done-buttons');
 const downloadBtn = document.getElementById('download_btn');
+const copyBtn = document.getElementById('copy_btn');
 const resetBtn = document.getElementById('reset_btn');
+const statsBlock = document.getElementById('stats-block');
+const recoveryBlock = document.getElementById('recovery-block');
+let currentStats = null;
 const enrichRunningButtons = document.getElementById('enrich-running-buttons');
 const stopEnrichBtn = document.getElementById('stop_enrich_btn');
 const enrichPausedButtons = document.getElementById('enrich-paused-buttons');
@@ -185,6 +196,7 @@ function saveUISettings() {
         format_starttime: document.getElementById('format_starttime').value,
         format_duration: document.getElementById('format_duration').value,
         max_streams: document.getElementById('max_streams').value,
+        min_viewers: document.getElementById('min_viewers').value,
         format: document.querySelector('input[name="format"]:checked').value,
         sort_dir: document.querySelector('input[name="sort_dir"]:checked').value,
         lang_filter: Array.from(document.querySelectorAll('input[name="lang_checkbox"]:checked')).map(cb => cb.value)
@@ -213,6 +225,7 @@ function loadUISettings() {
             if (s.format_starttime !== undefined) document.getElementById('format_starttime').value = s.format_starttime;
             if (s.format_duration !== undefined) document.getElementById('format_duration').value = s.format_duration;
             if (s.max_streams !== undefined) document.getElementById('max_streams').value = s.max_streams;
+            if (s.min_viewers !== undefined) document.getElementById('min_viewers').value = s.min_viewers;
 
             if (s.format !== undefined) {
                 const rb = document.querySelector(`input[name="format"][value="${s.format}"]`);
@@ -251,8 +264,32 @@ document.querySelectorAll('input, select').forEach(el => {
 });
 
 // ─── Restore state on popup open ───────────────────────────
-chrome.storage.local.get('scrapingState', ({ scrapingState }) => {
-    if (scrapingState) applyState(scrapingState);
+// A3: detect interrupted runs (service worker died mid-collection).
+// If scrapingState claims 'running'/'enriching' but the heartbeat is stale,
+// we treat it as interrupted and show a recovery UI.
+const HEARTBEAT_STALE_MS = 20000;
+
+function isRunActive(phase) {
+    return phase === 'running' || phase === 'enriching';
+}
+
+chrome.storage.local.get(['scrapingState', 'heartbeatAt', 'scrapeMeta', 'scrapedData'], (res) => {
+    const state = res.scrapingState;
+    if (!state) return;
+
+    if (isRunActive(state.phase)) {
+        const lastBeat = res.heartbeatAt || 0;
+        const age = Date.now() - lastBeat;
+        if (age > HEARTBEAT_STALE_MS) {
+            // Service worker almost certainly terminated — offer recovery
+            showInterruptedUI(state, res.scrapedData);
+            return;
+        }
+    }
+    applyState(state);
+    if (state.phase === 'done' && res.scrapeMeta?.stats) {
+        renderStats(res.scrapeMeta.stats);
+    }
 });
 
 // Listen for live updates from background
@@ -262,11 +299,76 @@ chrome.runtime.onMessage.addListener((message) => {
     }
 });
 
+// ─── Interrupted-run recovery (A3) ──────────────────────────────────────────
+function showInterruptedUI(state, scrapedData) {
+    // Reset running-looking controls
+    showProgress(false);
+    showActionButtons(false);
+    doneButtons.style.display = 'none';
+    enrichRunningButtons.style.display = 'none';
+    enrichPausedButtons.style.display = 'none';
+    collectBtn.style.display = 'none';
+
+    const count = state.collected || (scrapedData ? scrapedData.length : 0);
+    const hasData = scrapedData && scrapedData.length > 0;
+    recoveryBlock.style.display = 'block';
+    recoveryBlock.innerHTML = `<div style="margin-bottom: 8px;">⚠️ ${t('recovery_message').replace('{0}', count.toLocaleString(localeString()))}</div>
+        <div style="display:flex; gap:6px;">
+            ${hasData ? `<button id="rec_download" class="btn-copy" style="flex:1;">💾 ${t('btn_download_file')}</button>` : ''}
+            <button id="rec_reset" class="btn-secondary" style="flex:1; margin-top:0;">${t('btn_reset_full')}</button>
+        </div>`;
+    showPill('error', t('pill_interrupted'));
+
+    if (hasData) {
+        document.getElementById('rec_download').addEventListener('click', () => {
+            // Stop the (likely-dead) run cleanly, then offer normal download flow
+            chrome.runtime.sendMessage({ action: 'reset_state' }, () => {
+                recoveryBlock.style.display = 'none';
+                // Switch to done-state so the download button appears with collected data
+                chrome.storage.local.set({ scrapingState: { phase: 'done', collected: scrapedData.length, target: 0, error: null, stats: { total: scrapedData.length } } }, () => {
+                    applyState({ phase: 'done', collected: scrapedData.length, target: 0, error: null });
+                    statusPill.style.display = 'none';
+                });
+            });
+        });
+    }
+    document.getElementById('rec_reset').addEventListener('click', () => {
+        chrome.runtime.sendMessage({ action: 'reset_state' }, () => {
+            recoveryBlock.style.display = 'none';
+            statusPill.style.display = 'none';
+            resetToIdle();
+        });
+    });
+}
+
+// ─── Statistics rendering (C4) ───────────────────────────────────────────────
+function renderStats(stats) {
+    currentStats = stats;
+    if (!stats || !stats.total) { statsBlock.style.display = 'none'; return; }
+    statsBlock.style.display = 'block';
+
+    let html = `
+        <div class="stats-row"><span class="stats-label">${t('stats_total')}</span><span class="stats-value">${stats.total.toLocaleString(localeString())}</span></div>
+        <div class="stats-row"><span class="stats-label">${t('stats_total_viewers')}</span><span class="stats-value">${stats.totalViewers.toLocaleString(localeString())}</span></div>
+        <div class="stats-row"><span class="stats-label">${t('stats_avg_viewers')}</span><span class="stats-value">${stats.avgViewers.toLocaleString(localeString())}</span></div>`;
+    if (stats.topChannels && stats.topChannels.length > 0) {
+        html += `<div class="stats-top">
+            <div class="stats-top-title">${t('stats_top')}</div>`;
+        stats.topChannels.forEach(ch => {
+            html += `<div class="stats-top-row"><span>${ch.channel}</span><span style="color:var(--primary-hover);font-weight:600;">${ch.viewers.toLocaleString(localeString())}</span></div>`;
+        });
+        html += `</div>`;
+    }
+    statsBlock.innerHTML = html;
+}
+
 // ─── Apply state to UI ──────────────────────────────────────────────
 function applyState(state) {
     const { phase, collected, target, error } = state;
 
     if (phase === 'running') {
+        statsBlock.style.display = 'none';
+        recoveryBlock.style.display = 'none';
         showProgress(true);
         showActionButtons(true);
         doneButtons.style.display = 'none';
@@ -274,7 +376,7 @@ function applyState(state) {
         enrichPausedButtons.style.display = 'none';
         collectBtn.style.display = 'none';
         progressLabel.textContent = t('progress_gathering');
-        progressCount.textContent = (collected || 0).toLocaleString(currentLang);
+        progressCount.textContent = (collected || 0).toLocaleString(localeString());
 
         const hasTarget = target > 0;
         if (hasTarget) {
@@ -283,14 +385,14 @@ function applyState(state) {
             progressBar.style.width = pct + '%';
             progressSub.textContent = t('progress_running_sub_limited')
                 .replace('{0}', pct)
-                .replace('{1}', (collected || 0).toLocaleString(currentLang))
-                .replace('{2}', target.toLocaleString(currentLang));
+                .replace('{1}', (collected || 0).toLocaleString(localeString()))
+                .replace('{2}', target.toLocaleString(localeString()));
         } else {
             progressBar.classList.add('indeterminate');
             progressBar.classList.remove('done');
             progressBar.style.width = '100%';
             progressSub.textContent = t('progress_running_sub_unlimited')
-                .replace('{0}', (collected || 0).toLocaleString(currentLang));
+                .replace('{0}', (collected || 0).toLocaleString(localeString()));
         }
         showPill('running', t('pill_running'));
 
@@ -310,7 +412,7 @@ function applyState(state) {
         const total = state.enrichTotal || 0;
 
         progressLabel.textContent = state.enrichStep === 'extras' ? t('progress_enrich_social') : t('progress_enrich_panels');
-        progressCount.textContent = `${done.toLocaleString(currentLang)} / ${total.toLocaleString(currentLang)}`;
+        progressCount.textContent = `${done.toLocaleString(localeString())} / ${total.toLocaleString(localeString())}`;
 
         if (total > 0) {
             const pct = Math.min(100, Math.round(done / total * 100));
@@ -318,8 +420,8 @@ function applyState(state) {
             progressBar.style.width = pct + '%';
             progressSub.textContent = t('progress_enrich_sub')
                 .replace('{0}', pct)
-                .replace('{1}', done.toLocaleString(currentLang))
-                .replace('{2}', total.toLocaleString(currentLang));
+                .replace('{1}', done.toLocaleString(localeString()))
+                .replace('{2}', total.toLocaleString(localeString()));
         } else {
             progressBar.classList.add('indeterminate');
             progressBar.classList.remove('done');
@@ -344,7 +446,7 @@ function applyState(state) {
         const total = state.enrichTotal || 0;
 
         progressLabel.textContent = t('progress_paused').replace('{0}', stepLabel);
-        progressCount.textContent = `${done.toLocaleString(currentLang)} / ${total.toLocaleString(currentLang)}`;
+        progressCount.textContent = `${done.toLocaleString(localeString())} / ${total.toLocaleString(localeString())}`;
 
         if (total > 0) {
             const pct = Math.min(100, Math.round(done / total * 100));
@@ -352,8 +454,8 @@ function applyState(state) {
             progressBar.style.width = pct + '%';
             progressSub.textContent = t('progress_enrich_sub')
                 .replace('{0}', pct)
-                .replace('{1}', done.toLocaleString(currentLang))
-                .replace('{2}', total.toLocaleString(currentLang));
+                .replace('{1}', done.toLocaleString(localeString()))
+                .replace('{2}', total.toLocaleString(localeString()));
         } else {
             progressBar.classList.add('indeterminate');
             progressBar.classList.remove('done');
@@ -363,6 +465,8 @@ function applyState(state) {
         showPill('warning', t('pill_paused'));
 
     } else if (phase === 'done') {
+        statsBlock.style.display = 'none';
+        recoveryBlock.style.display = 'none';
         showProgress(true);
         showActionButtons(false);
         doneButtons.style.display = 'flex';
@@ -370,14 +474,24 @@ function applyState(state) {
         enrichPausedButtons.style.display = 'none';
         collectBtn.style.display = 'none';
         progressLabel.textContent = t('progress_done');
-        progressCount.textContent = (collected || 0).toLocaleString('ru-RU');
+        progressCount.textContent = (collected || 0).toLocaleString(localeString());
         progressBar.classList.remove('indeterminate');
         progressBar.classList.add('done');
         progressBar.style.width = '100%';
-        progressSub.textContent = t('progress_saved').replace('{0}', (collected || 0).toLocaleString(currentLang));
-        showPill('done', t('pill_done').replace('{0}', (collected || 0).toLocaleString(currentLang)));
+        progressSub.textContent = t('progress_saved').replace('{0}', (collected || 0).toLocaleString(localeString()));
+        showPill('done', t('pill_done').replace('{0}', (collected || 0).toLocaleString(localeString())));
+        // C4: render stats if present in state (live updates) or meta (reopen)
+        if (state.stats) {
+            renderStats(state.stats);
+        } else {
+            chrome.storage.local.get('scrapeMeta', (res) => {
+                if (res.scrapeMeta?.stats) renderStats(res.scrapeMeta.stats);
+            });
+        }
 
     } else if (phase === 'error') {
+        statsBlock.style.display = 'none';
+        recoveryBlock.style.display = 'none';
         showProgress(false);
         showActionButtons(false);
         doneButtons.style.display = 'none';
@@ -414,6 +528,9 @@ function resetToIdle() {
     doneButtons.style.display = 'none';
     enrichRunningButtons.style.display = 'none';
     enrichPausedButtons.style.display = 'none';
+    statsBlock.style.display = 'none';
+    recoveryBlock.style.display = 'none';
+    currentStats = null;
     collectBtn.style.display = 'flex';
     collectBtn.disabled = false;
     collectBtn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> ${t('btn_collect')}`;
@@ -477,6 +594,7 @@ collectBtn.addEventListener('click', async () => {
         langFilter: selectedLangs.length > 0 ? selectedLangs : ['all'],
         subOnly: document.getElementById('cb_subonly').checked,
         maxStreams: parseInt(document.getElementById('max_streams').value) || 0,
+        minViewers: parseInt(document.getElementById('min_viewers').value) || 0,
         format: document.querySelector('input[name="format"]:checked').value,
         sortDir: document.querySelector('input[name="sort_dir"]:checked').value
     };
@@ -541,6 +659,57 @@ downloadBtn.addEventListener('click', () => {
     chrome.runtime.sendMessage({ action: 'download_last_data', format: currentFormat, fields: currentFields, timeFormat: currentTimeFormat, sortDir: currentSort, lang: currentLang });
 });
 
+// ─── COPY JSON Button (D2) ──────────────────────────────────────────────────
+copyBtn.addEventListener('click', () => {
+    const currentFields = {
+        title: document.getElementById('cb_title').checked,
+        channel: document.getElementById('cb_channel').checked,
+        category: document.getElementById('cb_category').checked,
+        viewers: document.getElementById('cb_viewers').checked,
+        followers: document.getElementById('cb_followers').checked,
+        language: document.getElementById('cb_language').checked,
+        tags: document.getElementById('cb_tags').checked,
+        url: document.getElementById('cb_url').checked,
+        description: document.getElementById('cb_desc').checked,
+        social: document.getElementById('cb_social').checked,
+        panels: document.getElementById('cb_panels').checked,
+        starttime: document.getElementById('cb_starttime').checked,
+        duration: document.getElementById('cb_duration').checked
+    };
+    const currentTimeFormat = {
+        start: document.getElementById('format_starttime').value,
+        duration: document.getElementById('format_duration').value
+    };
+    copyBtn.disabled = true;
+    const originalHTML = copyBtn.innerHTML;
+    copyBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> ${t('btn_copying')}`;
+    chrome.runtime.sendMessage({ action: 'copy_last_data', fields: currentFields, timeFormat: currentTimeFormat, lang: currentLang }, (res) => {
+        copyBtn.disabled = false;
+        copyBtn.innerHTML = originalHTML;
+        if (res && res.ok && res.data !== undefined) {
+            // Copy to clipboard via the offscreen/textarea fallback in popup context
+            const ta = document.createElement('textarea');
+            ta.value = res.data;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            try {
+                document.execCommand('copy');
+                showPill('done', t('pill_copied'));
+                setTimeout(() => { statusPill.style.display = 'none'; }, 2000);
+            } catch (e) {
+                showPill('error', t('pill_copy_failed'));
+                setTimeout(() => { statusPill.style.display = 'none'; }, 3000);
+            }
+            document.body.removeChild(ta);
+        } else {
+            showPill('error', t('pill_copy_failed'));
+            setTimeout(() => { statusPill.style.display = 'none'; }, 3000);
+        }
+    });
+});
+
 resetBtn.addEventListener('click', () => {
     chrome.runtime.sendMessage({ action: 'reset_state' });
 });
@@ -569,6 +738,7 @@ defaultSettingsBtn.addEventListener('click', () => {
     });
 
     document.getElementById('max_streams').value = "0";
+    document.getElementById('min_viewers').value = "0";
     const jsonRadio = document.querySelector('input[name="format"][value="json"]');
     if (jsonRadio) jsonRadio.checked = true;
     const descRadio = document.querySelector('input[name="sort_dir"][value="desc"]');
@@ -599,6 +769,7 @@ fullResetBtn.addEventListener('click', () => {
             });
 
             document.getElementById('max_streams').value = "0";
+            document.getElementById('min_viewers').value = "0";
             const jsonRadio = document.querySelector('input[name="format"][value="json"]');
             if (jsonRadio) jsonRadio.checked = true;
             const descRadio = document.querySelector('input[name="sort_dir"][value="desc"]');

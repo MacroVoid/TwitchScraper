@@ -554,6 +554,89 @@
       color: var(--primary-hover);
       font-weight: 600;
     }
+
+    /* ===== STATS BLOCK (C4) ===== */
+    .stats-block {
+      background: var(--surface-light);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-bottom: 10px;
+    }
+    .stats-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      margin-bottom: 4px;
+    }
+    .stats-row:last-child {
+      margin-bottom: 0;
+    }
+    .stats-label {
+      color: var(--text-muted);
+    }
+    .stats-value {
+      color: var(--text);
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+    .stats-top {
+      margin-top: 6px;
+      padding-top: 6px;
+      border-top: 1px solid var(--border);
+    }
+    .stats-top-title {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-bottom: 3px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .stats-top-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      margin-bottom: 2px;
+    }
+
+    /* ===== DONE BUTTONS COLUMN LAYOUT ===== */
+    .done-row {
+      display: flex;
+      gap: 8px;
+      width: 100%;
+    }
+    .btn-copy {
+      flex: 1;
+      padding: 11px;
+      background: transparent;
+      color: var(--primary-hover);
+      border: 1px solid rgba(145, 70, 255, 0.4);
+      border-radius: 9px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .btn-copy:hover {
+      background: rgba(145, 70, 255, 0.12);
+      border-color: var(--primary);
+    }
+
+    /* ===== INTERRUPTED RECOVERY (A3) ===== */
+    .recovery-block {
+      background: rgba(240, 179, 0, 0.08);
+      border: 1px solid rgba(240, 179, 0, 0.3);
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-bottom: 10px;
+      font-size: 12px;
+      color: var(--text);
+      line-height: 1.4;
+    }
   </style>
 
 </head>
@@ -632,6 +715,10 @@
       <div class="lang-select-container">
         <div class="lang-list" id="lang_list"></div>
       </div>
+      <div class="two-col" style="margin-top: 10px;">
+        <label for="min_viewers" data-i18n="filter_min_viewers">Min viewers:</label>
+        <input type="number" id="min_viewers" value="0" min="0" max="10000000">
+      </div>
       <label class="checkbox-label" style="margin-top: 8px;">
         <input type="checkbox" id="cb_subonly"> <span data-i18n="cb_subonly">Include Private (Sub-Only)</span>
       </label>
@@ -690,19 +777,20 @@
     </div>
 
     <div class="section" id="settings-section">
-      <div class="section-title" data-i18n="sec_export">Настройки экспорта</div>
+      <div class="section-title" data-i18n="sec_export">Export Settings</div>
       <div class="two-col" style="margin-bottom: 12px;">
-        <label for="max_streams" data-i18n="export_limit">Лимит (0 - без лимита):</label>
+        <label for="max_streams" data-i18n="export_limit">Limit (0 - unlimited):</label>
         <input type="number" id="max_streams" value="0" min="0" max="100000">
       </div>
       <div class="radio-group" style="margin-bottom: 12px;">
         <label class="radio-label"><input type="radio" name="format" value="json" checked> <span data-i18n="export_json">JSON</span></label>
         <label class="radio-label"><input type="radio" name="format" value="md"> <span data-i18n="export_md">Markdown</span></label>
+        <label class="radio-label"><input type="radio" name="format" value="csv"> <span data-i18n="export_csv">CSV</span></label>
       </div>
 
       <button id="default_settings_btn" class="btn-secondary"
         style="margin-top: 4px; padding: 6px; font-size: 11px; opacity: 0.8; width: 100%;">
-        <span data-i18n="btn_reset_ui">Reset settings интерфейса</span>
+        <span data-i18n="btn_reset_ui">Reset UI Settings</span>
       </button>
     </div>
 
@@ -715,6 +803,12 @@
       </svg>
       <span data-i18n="btn_collect">Собрать и скачать</span>
     </button>
+
+    <!-- Interrupted-run recovery block (A3) -->
+    <div id="recovery-block" class="recovery-block" style="display:none;"></div>
+
+    <!-- Statistics block (C4) — shown after collection completes -->
+    <div id="stats-block" class="stats-block" style="display:none;"></div>
 
     <!-- Control buttons (visible only during collection) -->
     <div class="action-buttons" id="action-buttons">
@@ -743,11 +837,21 @@
           <polyline points="7 10 12 15 17 10" />
           <line x1="12" y1="15" x2="12" y2="3" />
         </svg>
-        <span data-i18n="btn_download_file">Скачать файл</span>
+        <span data-i18n="btn_download_file">Download File</span>
       </button>
-      <button id="reset_btn" class="btn-secondary">
-        <span data-i18n="btn_reset_full">Сбросить и начать заново</span>
-      </button>
+      <div class="done-row" style="margin-top: 8px;">
+        <button id="copy_btn" class="btn-copy">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+          </svg>
+          <span data-i18n="btn_copy">Copy JSON</span>
+        </button>
+        <button id="reset_btn" class="btn-secondary" style="margin-top: 0; flex: 1;">
+          <span data-i18n="btn_reset_full">Reset and Start Over</span>
+        </button>
+      </div>
     </div>
 
     <!-- Enrichment buttons (socials / panels) -->

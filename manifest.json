@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Twitch Stream Scraper",
-  "version": "2.0",
+  "version": "2.1",
   "description": "Извлекает данные о трансляциях со страниц категорий Twitch.",
   "permissions": [
     "activeTab",
@@ -19,7 +19,17 @@
   },
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Парсер Twitch"
+    "default_title": "Парсер Twitch",
+    "default_icon": {
+      "16": "icon16.png",
+      "48": "icon48.png",
+      "128": "icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icon16.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
   },
   "content_scripts": [
     {

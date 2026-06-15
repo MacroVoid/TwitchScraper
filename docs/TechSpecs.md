@@ -260,6 +260,13 @@ The `applyState` function in `popup.js` responds to each `phase` by:
 - Updating the status indicator styling (blue / yellow / red / green)
 - Animating the progress bar
 
+### 7.3 Localization System
+
+The UI supports dynamic language switching (Russian and English):
+- The selected language is stored in `localStorage` under the `appLang` key and restored at startup.
+- The `applyTranslations()` function traverses the DOM and sets localized strings for all elements with `data-i18n` (text content) and `data-i18n-title` (tooltips) attributes.
+- Service Worker status messages during collection, enrichment, and pausing phases are formatted reactively using corresponding language templates from `i18n.js`.
+
 ---
 
 ## 8. File Generation and Export
@@ -283,6 +290,7 @@ The Markdown output is structured for readability:
 - Long content (`description`, panels) is wrapped in `<details><summary>Expand...</summary><blockquote>...</blockquote></details>` to prevent layout disruption.
 - Social media links are rendered as `[Name](URL)`.
 - Panel entries handle `title` + `linkURL` combinations and preserve line breaks within `description`.
+- **Language Adaptation**: All section headers, stream property labels (Channel, Viewers, Start Time, Duration, etc.), and details summary titles are localized according to the currently active UI language at the time of export (the `lang` value is sent to the Service Worker in the `download_last_data` message).
 
 Once the content is assembled, a `Blob` is created, a temporary `ObjectURL` is generated, and the download is triggered via a programmatic click on an `<a>` element.
 

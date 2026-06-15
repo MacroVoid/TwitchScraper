@@ -544,73 +544,73 @@
   <!-- MAIN VIEW -->
   <div class="container" id="main-view">
 
-    <!-- ПРОГРЕСС (скрыт если неактивен) -->
+    <!-- PROGRESS (hidden if inactive) -->
     <div id="progress-section">
       <div class="progress-header">
-        <span class="progress-label" id="progress-label">Сбор данных...</span>
+        <span class="progress-label" id="progress-label">Collecting data...</span>
         <span class="progress-count" id="progress-count">0</span>
       </div>
       <div class="progress-bar-wrap">
         <div class="progress-bar-fill indeterminate" id="progress-bar"></div>
       </div>
-      <div class="progress-sub" id="progress-sub">Инициализация...</div>
+      <div class="progress-sub" id="progress-sub">Initializing...</div>
     </div>
 
-    <!-- ПОЛЯ ДЛЯ СБОРА -->
+    <!-- FIELDS TO COLLECT -->
     <div class="section" id="fields-section">
-      <div class="section-title">Данные для сбора</div>
+      <div class="section-title">Data to collect</div>
       <div class="grid-options">
-        <label class="checkbox-label"><input type="checkbox" id="cb_channel" checked> Канал</label>
-        <label class="checkbox-label"><input type="checkbox" id="cb_category" checked> Категория</label>
-        <label class="checkbox-label"><input type="checkbox" id="cb_tags" checked> Теги</label>
-        <label class="checkbox-label"><input type="checkbox" id="cb_viewers" checked> Зрители</label>
-        <label class="checkbox-label"><input type="checkbox" id="cb_followers" checked> Фолловеры</label>
-        <label class="checkbox-label"><input type="checkbox" id="cb_title" checked> Название</label>
-        <label class="checkbox-label"><input type="checkbox" id="cb_language" checked> Язык</label>
-        <label class="checkbox-label"><input type="checkbox" id="cb_url" checked> Ссылка</label>
-        <label class="checkbox-label"><input type="checkbox" id="cb_desc" checked> Описание</label>
-        <label class="checkbox-label"><input type="checkbox" id="cb_social" checked> Соц. сети</label>
-        <label class="checkbox-label"><input type="checkbox" id="cb_panels"> Панели</label>
-        <label class="checkbox-label"><input type="checkbox" id="cb_starttime"> Время начала</label>
-        <label class="checkbox-label"><input type="checkbox" id="cb_duration"> Продолжительность</label>
+        <label class="checkbox-label"><input type="checkbox" id="cb_channel" checked> Channel</label>
+        <label class="checkbox-label"><input type="checkbox" id="cb_category" checked> Category</label>
+        <label class="checkbox-label"><input type="checkbox" id="cb_tags" checked> Tags</label>
+        <label class="checkbox-label"><input type="checkbox" id="cb_viewers" checked> Viewers</label>
+        <label class="checkbox-label"><input type="checkbox" id="cb_followers" checked> Followers</label>
+        <label class="checkbox-label"><input type="checkbox" id="cb_title" checked> Title</label>
+        <label class="checkbox-label"><input type="checkbox" id="cb_language" checked> Language</label>
+        <label class="checkbox-label"><input type="checkbox" id="cb_url" checked> URL</label>
+        <label class="checkbox-label"><input type="checkbox" id="cb_desc" checked> Description</label>
+        <label class="checkbox-label"><input type="checkbox" id="cb_social" checked> Social Networks</label>
+        <label class="checkbox-label"><input type="checkbox" id="cb_panels"> Panels</label>
+        <label class="checkbox-label"><input type="checkbox" id="cb_starttime"> Start Time</label>
+        <label class="checkbox-label"><input type="checkbox" id="cb_duration"> Duration</label>
       </div>
     </div>
 
-    <!-- ФИЛЬТР -->
+    <!-- FILTER -->
     <div class="section" id="filter-section">
-      <div class="section-title">Фильтры</div>
+      <div class="section-title">Filters</div>
       <div class="lang-select-container">
         <div class="lang-list" id="lang_list"></div>
       </div>
       <label class="checkbox-label" style="margin-top: 8px;">
-        <input type="checkbox" id="cb_subonly"> Включать приватные (Sub-Only)
+        <input type="checkbox" id="cb_subonly"> Include Private (Sub-Only)
       </label>
     </div>
 
-    <!-- ФОРМАТИРОВАНИЕ -->
+    <!-- FORMATTING -->
     <div class="section" id="format-section">
-      <div class="section-title">Формат времени и продолжительности</div>
+      <div class="section-title">Time and Duration Format</div>
       <div style="margin-bottom: 10px;">
-        <label style="display: block; font-size: 13px; color: var(--text-muted); margin-bottom: 4px;">Время начала</label>
+        <label style="display: block; font-size: 13px; color: var(--text-muted); margin-bottom: 4px;">Start Time</label>
         <select id="format_starttime">
           <option value="iso" selected>ISO 8601 (рекомендуется)</option>
           <option value="unix">Unixtime</option>
           <option value="gmt">GMT 0</option>
-          <option value="local12">Местное (12 часов)</option>
-          <option value="local24">Местное (24 часа)</option>
+          <option value="local12">Local (12 hours)</option>
+          <option value="local24">Local (24 hours)</option>
         </select>
       </div>
       <div>
-        <label style="display: block; font-size: 13px; color: var(--text-muted); margin-bottom: 4px;">Продолжительность</label>
+        <label style="display: block; font-size: 13px; color: var(--text-muted); margin-bottom: 4px;">Duration</label>
         <select id="format_duration">
-          <option value="hms" selected>Часы:Минуты:Секунды (02:15:30)</option>
-          <option value="sec">Всего секунд (8130s)</option>
+          <option value="hms" selected>Hours:Minutes:Seconds (02:15:30)</option>
+          <option value="sec">Total seconds (8130s)</option>
         </select>
       </div>
     </div>
 
     <div class="section" id="sort-section">
-      <div class="section-title">Сортировка по зрителям</div>
+      <div class="section-title">Sort by viewers</div>
       <div class="radio-group">
         <label class="radio-label">
           <input type="radio" name="sort_dir" value="desc" checked>
@@ -622,7 +622,7 @@
             <path d="M11 8h7" />
             <path d="M11 12h4" />
           </svg>
-          По убыванию
+          Descending
         </label>
         <label class="radio-label">
           <input type="radio" name="sort_dir" value="asc">
@@ -634,7 +634,7 @@
             <path d="M11 8h7" />
             <path d="M11 12h10" />
           </svg>
-          По возрастанию
+          Ascending
         </label>
       </div>
     </div>
@@ -652,7 +652,7 @@
 
       <button id="default_settings_btn" class="btn-secondary"
         style="margin-top: 4px; padding: 6px; font-size: 11px; opacity: 0.8; width: 100%;">
-        Сбросить настройки интерфейса
+        Reset settings интерфейса
       </button>
     </div>
 
@@ -666,7 +666,7 @@
       Собрать и скачать
     </button>
 
-    <!-- Кнопки управления (видны только во время сбора) -->
+    <!-- Control buttons (visible only during collection) -->
     <div class="action-buttons" id="action-buttons">
       <button id="stop_btn" class="btn-stop">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
@@ -700,7 +700,7 @@
       </button>
     </div>
 
-    <!-- Кнопки при обогащении (соц. сети / панели) -->
+    <!-- Enrichment buttons (socials / panels) -->
     <div id="enrich-running-buttons" style="display:none; margin-top: 0;">
       <button id="stop_enrich_btn" class="btn-stop" style="width:100%;">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
@@ -771,7 +771,7 @@
           <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
           <path d="M3 3v5h5" />
         </svg>
-        Полный сброс расширения (Экстренный)
+        Full reset (Emergency)
       </button>
     </div>
 

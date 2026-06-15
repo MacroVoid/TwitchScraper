@@ -1,7 +1,7 @@
 // =============================================
 // Background Service Worker
-// Делает ВСЕ GQL-запросы сам (обходит CORS).
-// Content.js нужен только для инжекта скачивания.
+// Makes ALL GQL requests itself (bypasses CORS).
+// Content.js is needed only for download injection.
 // =============================================
 
 const CLIENT_ID = "kimne78kx3ncx6brgo4mv6wki5h1ko";
@@ -82,8 +82,8 @@ function cleanHeaders() {
     return updated;
 }
 
-// Оставляем старый ID как запасной (fallback) на случай, 
-// если мы захотим сделать запрос до того, как поймаем новый
+// Leave old ID as fallback just in case, 
+// if we want to make a request before catching a new one
 let twitchHeaders = {
     "Client-Id": "kimne78kx3ncx6brgo4mv6wki5h1ko", 
     "Content-Type": "application/json"
@@ -100,7 +100,7 @@ chrome.storage.local.get('twitchHeaders', (res) => {
     }
 });
 
-// Пассивно перехватываем ВСЕ важные токены
+// Passively intercept ALL important tokens
 chrome.webRequest.onSendHeaders.addListener(
     (details) => {
         if (details.requestHeaders) {
@@ -110,7 +110,7 @@ chrome.webRequest.onSendHeaders.addListener(
                 const normalized = HEADER_KEY_MAP[name];
                 
                 if (normalized) {
-                    // Удаляем старые дубликаты с разным регистром (например, Client-ID)
+                    // Remove old duplicates with different case (e.g., Client-ID)
                     for (const key of Object.keys(twitchHeaders)) {
                         if (key.toLowerCase() === name && key !== normalized) {
                             delete twitchHeaders[key];
@@ -135,14 +135,14 @@ chrome.webRequest.onSendHeaders.addListener(
     ["requestHeaders"]
 );
 
-// ─── Инициализация ────────────────────────────────────────────────────────
+// ─── Initialization ────────────────────────────────────────────────────────
 chrome.storage.local.get('scrapingState', (result) => {
     if (!result.scrapingState) {
         chrome.storage.local.set({ scrapingState: { phase: 'idle', collected: 0, target: 0, error: null } });
     }
 });
 
-// ─── Вспомогательные ──────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────
 function setState(state) {
     chrome.storage.local.set({ scrapingState: state });
     chrome.runtime.sendMessage({ action: 'state_update', state }).catch(() => {});
@@ -153,10 +153,10 @@ function setIdle() {
     setState({ phase: 'idle', collected: 0, target: 0, error: null });
 }
 
-// ─── Вспомогательные ──────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────
 function buildGQLBody(slug, langFilter, cursor, subOnly, sortDir) {
     const langString = langFilter.join(', '); 
-    // Если галочка стоит, добавляем параметр, иначе оставляем пустым
+    // If checkbox is checked, add parameter, else leave empty
     const restrictedClause = subOnly ? 'includeRestricted: [SUB_ONLY_LIVE]' : '';
     const sortVal = sortDir === 'asc' ? 'VIEWER_COUNT_ASC' : 'VIEWER_COUNT';
     
@@ -192,12 +192,12 @@ function buildGQLBody(slug, langFilter, cursor, subOnly, sortDir) {
     });
 }
 
-// ─── Запрос панелей канала ───────────────────────────────────────────────────
+// ─── Fetch channel panels ───────────────────────────────────────────────────
 async function fetchPanelsForUsers(userIds) {
     if (!userIds || userIds.length === 0) return {};
     const result = {};
-    // Twitch не поддерживает батч по panels, поэтому шлём по одному запросу на канал
-    // Но оборачиваем в один fetch с массивом operationName
+    // Twitch doesn't support batching for panels, so we send one request per channel
+    // But wrap in a single fetch with an operationName array
     const bodies = userIds.map(id => ({
         operationName: "ChannelPanels",
         variables: { id },
@@ -231,7 +231,7 @@ async function fetchPanelsForUsers(userIds) {
     return result;
 }
 
-// ─── Запрос доп. инфы (соцсети и аптайм) ──────────────────────────────────
+// ─── Fetch extra info (socials and starttime) ──────────────────────────────────
 async function fetchChannelExtrasBatch(logins) {
     if (!logins || logins.length === 0) return {};
     const query = `
@@ -284,9 +284,9 @@ async function fetchChannelExtrasBatch(logins) {
     return result;
 }
 
-// ─── Инжект скачивания в Twitch-вкладку ──────────────────────────────────────
+// ─── Inject download into Twitch tab ──────────────────────────────────────
 function triggerDownload(data, format, filename, fields, sortDir, timeFormat) {
-    // fields — объект с булевыми флагами (что показывать)
+    // fields — object with boolean flags (what to show)
     const f = fields || {
         channel: true, category: true, tags: true, viewers: true,
         followers: true, title: true, language: true, url: true,
@@ -294,7 +294,7 @@ function triggerDownload(data, format, filename, fields, sortDir, timeFormat) {
     };
     const tf = timeFormat || { start: 'iso', duration: 'hms' };
 
-    // Функция форматирования времени начала
+    // Function to format start time
     const formatStart = (isoString) => {
         if (!isoString) return '—';
         const d = new Date(isoString);
@@ -309,7 +309,7 @@ function triggerDownload(data, format, filename, fields, sortDir, timeFormat) {
         }
     };
 
-    // Функция форматирования продолжительности
+    // Function to format duration
     const formatDuration = (isoString) => {
         if (!isoString) return '—';
         const d = new Date(isoString);
@@ -326,7 +326,7 @@ function triggerDownload(data, format, filename, fields, sortDir, timeFormat) {
         }
     };
 
-    // Сортируем локальные данные по зрителям перед экспортом
+    // Sort local data by viewers before export
     data.sort((a, b) => {
         const vA = a.viewers || 0;
         const vB = b.viewers || 0;
@@ -337,7 +337,7 @@ function triggerDownload(data, format, filename, fields, sortDir, timeFormat) {
     let mimeType = '';
 
     if (format === 'json') {
-        // При JSON фильтруем поля
+        // Filter fields for JSON
         const filtered = data.map(s => {
             const out = {};
             if (f.title       && s.title       !== undefined) out.title       = s.title;
@@ -362,24 +362,24 @@ function triggerDownload(data, format, filename, fields, sortDir, timeFormat) {
         data.forEach((s, i) => {
             const title = f.title ? (s.title || '—') : `Запись #${i + 1}`;
             content += `## ${i + 1}. ${title}\n\n`;
-            if (f.channel   && s.channel)                    content += `- **Канал:** ${s.channel}\n`;
-            if (f.category  && s.category)                   content += `- **Категория:** ${s.category}\n`;
-            if (f.viewers   && s.viewers     !== undefined)   content += `- **Зрители:** ${s.viewers}\n`;
-            if (f.followers && s.followers   !== undefined)   content += `- **Фолловеры:** ${s.followers}\n`;
-            if (f.language  && s.language)                   content += `- **Язык:** ${s.language}\n`;
-            if (f.tags      && s.tags?.length)               content += `- **Теги:** ${s.tags.join(', ')}\n`;
-            if (f.url       && s.url)                        content += `- **Ссылка:** ${s.url}\n`;
+            if (f.channel   && s.channel)                    content += `- **Channel:** ${s.channel}\n`;
+            if (f.category  && s.category)                   content += `- **Category:** ${s.category}\n`;
+            if (f.viewers   && s.viewers     !== undefined)   content += `- **Viewers:** ${s.viewers}\n`;
+            if (f.followers && s.followers   !== undefined)   content += `- **Followers:** ${s.followers}\n`;
+            if (f.language  && s.language)                   content += `- **Language:** ${s.language}\n`;
+            if (f.tags      && s.tags?.length)               content += `- **Tags:** ${s.tags.join(', ')}\n`;
+            if (f.url       && s.url)                        content += `- **URL:** ${s.url}\n`;
             
-            if (f.starttime && s.createdAt)                  content += `- **Время начала:** ${formatStart(s.createdAt)}\n`;
-            if (f.duration  && s.createdAt)                  content += `- **Продолжительность:** ${formatDuration(s.createdAt)}\n`;
+            if (f.starttime && s.createdAt)                  content += `- **Start Time:** ${formatStart(s.createdAt)}\n`;
+            if (f.duration  && s.createdAt)                  content += `- **Duration:** ${formatDuration(s.createdAt)}\n`;
 
             if (f.description && s.description) {
-                content += `- **Описание:**\n<details>\n<summary>Развернуть описание</summary>\n<blockquote>\n${s.description}\n</blockquote>\n</details>\n`;
+                content += `- **Description:**\n<details>\n<summary>Развернуть описание</summary>\n<blockquote>\n${s.description}\n</blockquote>\n</details>\n`;
             }
 
-            // Соц. сети
+            // Social networks
             if (f.social && s.social?.length) {
-                content += `\n**Соц. сети:**\n\n`;
+                content += `\n**Social Networks:**\n\n`;
                 s.social.forEach(sm => {
                     const label = sm.title || sm.name || sm.url;
                     content += `- [${label}](${sm.url})  \n`;
@@ -387,16 +387,16 @@ function triggerDownload(data, format, filename, fields, sortDir, timeFormat) {
                 content += '\n';
             }
 
-            // Панели — красивый Markdown без заголовков документа
+            // Panels — beautiful Markdown without document headers
             if (f.panels && s.panels?.length) {
-                content += `\n**Панели канала:**\n<details>\n<summary>Развернуть панели (${s.panels.length})</summary>\n<blockquote>\n\n`;
+                content += `\n**Panels канала:**\n<details>\n<summary>Развернуть панели (${s.panels.length})</summary>\n<blockquote>\n\n`;
                 s.panels.forEach((p, idx) => {
                     if (p.title && p.linkURL) {
                         content += `**[${p.title}](${p.linkURL})**  \n`;
                     } else if (p.title) {
                         content += `**${p.title}**  \n`;
                     } else if (p.linkURL) {
-                        content += `**[🔗 Ссылка](${p.linkURL})**  \n`;
+                        content += `**[🔗 URL](${p.linkURL})**  \n`;
                     }
                     if (p.altText) content += `> ${p.altText}  \n`;
                     if (p.description && p.description.trim()) {
@@ -436,25 +436,25 @@ function downloadData(data, format, tabId, fields, sortDir, timeFormat) {
     }).catch(e => console.error("Download inject error:", e));
 }
 
-// ─── Основной цикл сбора ────────────────────────────────────────────────────
+// ─── Main collection loop ────────────────────────────────────────────────────
 async function collectStreams(slug, options, tabId) {
     _isRunning = true;
     _shouldStop = false;
     _shouldFinish = false;
-    addLog(`=== ЗАПУСК СБОРА === Категория: ${slug}, Лимит: ${options.maxStreams || 'без лимита'}`);
+    addLog(`=== ЗАПУСК СБОРА === Category: ${slug}, Лимит: ${options.maxStreams || 'без лимита'}`);
     await ensureHeadersLoaded();
 
     const maxStreams = options.maxStreams > 0 ? options.maxStreams : Infinity;
     
-    // Если лимит не задан (без лимита), всегда шлем на сервер 'desc' (по убыванию),
-    // чтобы обойти баги пагинации Twitch для VIEWER_COUNT_ASC.
-    // Локальная сортировка в нужном направлении применится перед записью в файл.
+    // If no limit (unlimited), always send 'desc' to server,
+    // to bypass Twitch pagination bugs for VIEWER_COUNT_ASC.
+    // Local sorting in desired direction will be applied before file write.
     const serverSortDir = (maxStreams === Infinity) ? 'desc' : options.sortDir;
     
     const isAll = options.langFilter.includes('all');
-    // Если выбрано 'all', передаем пустой массив, чтобы Twitch вернул все языки без фильтрации
+    // If 'all' is selected, pass empty array for Twitch to return all languages
     const langFilter = isAll ? [] : options.langFilter.map(l => l.toUpperCase());
-    addLog(`Языки: ${JSON.stringify(langFilter)} (isAll: ${isAll}), SubOnly: ${options.subOnly}`);
+    addLog(`Languageи: ${JSON.stringify(langFilter)} (isAll: ${isAll}), SubOnly: ${options.subOnly}`);
 
     const collected = new Map();
     let cursor = null;
@@ -537,7 +537,7 @@ async function collectStreams(slug, options, tabId) {
         }
         emptyStreak = 0;
 
-        // Сначала собираем все узлы из этой страницы
+        // First collect all nodes from this page
         const batchNodes = [];
         for (const edge of edges) {
             if (collected.size + batchNodes.length >= maxStreams || _shouldStop || _shouldFinish) break;
@@ -546,7 +546,7 @@ async function collectStreams(slug, options, tabId) {
             batchNodes.push(node);
         }
 
-        // Если нужны панели — запрашиваем пакетом
+        // If panels are needed — fetch them in batch
         let panelsMap = {};
         if (options.fields.panels && batchNodes.length > 0) {
             const userIds = batchNodes.map(n => n.broadcaster?.id).filter(Boolean);
@@ -558,7 +558,7 @@ async function collectStreams(slug, options, tabId) {
             }
         }
 
-        // Если нужны соц. сети ИЛИ время — запрашиваем пакетом по логинам
+        // If socials OR time are needed — fetch them in batch by logins
         let extrasMap = {};
         if ((options.fields.social || options.fields.starttime || options.fields.duration) && batchNodes.length > 0) {
             const logins = batchNodes.map(n => n.broadcaster?.login).filter(Boolean);
@@ -566,7 +566,7 @@ async function collectStreams(slug, options, tabId) {
         }
 
         for (const node of batchNodes) {
-            // Всегда собираем ВСЕ базовые поля — фильтрация будет при скачивании
+            // Always collect ALL base fields — filtering happens on download
             const s = {};
             s.title       = node.title || "";
             s.channel     = node.broadcaster?.displayName || node.broadcaster?.login || "";
@@ -580,16 +580,16 @@ async function collectStreams(slug, options, tabId) {
             s.url         = `https://www.twitch.tv/${node.broadcaster?.login || ""}`;
             s.description = node.broadcaster?.description || "";
 
-            // Служебные поля для последующего обогащения (не попадут в экспорт)
+            // Service fields for subsequent enrichment (won't be exported)
             s._login  = node.broadcaster?.login  || "";
             s._userId = node.broadcaster?.id     || "";
 
-            // Панели — только если запрашивали
+            // Panels — only if requested
             if (options.fields.panels) {
                 s.panels = panelsMap[node.broadcaster?.id] || [];
             }
 
-            // Соц. сети и Время — сохраняем оба поля, если запросили хотя бы одно
+            // Social networks и Время — сохраняем оба поля, если запросили хотя бы одно
             if (options.fields.social || options.fields.starttime || options.fields.duration) {
                 const ext = extrasMap[node.broadcaster?.login] || { socials: [], createdAt: null };
                 s.social = ext.socials;
@@ -603,13 +603,13 @@ async function collectStreams(slug, options, tabId) {
 
         const hasNextPage = streams.pageInfo?.hasNextPage;
         
-        // ВАЖНО: Мы убрали || newInBatch === 0. Теперь сбор остановится только если Twitch скажет, что страниц больше нет.
+        // IMPORTANT: Removed || newInBatch === 0. Collection stops only when Twitch says no more pages.
         if (!hasNextPage || edges.length === 0) break;
 
         const nextCursor = edges[edges.length - 1].cursor;
         const nextLastItemId = edges[edges.length - 1].node?.id || null;
         
-        // Защита от бесконечного цикла: если сервер намертво завис и отдает один и тот же курсор с тем же последним элементом
+        // Infinite loop protection: if server hangs and returns same cursor
         if (cursor === nextCursor && lastItemId === nextLastItemId) {
             addLog(`Прерываем сбор: обнаружен бесконечный цикл (тот же курсор и ID последнего элемента).`);
             break;
@@ -650,7 +650,7 @@ async function collectStreams(slug, options, tabId) {
     });
 }
 
-// ─── Обогащение уже собранных данных с прогрессом ────────────────────────
+// ─── Enrich already collected data with progress ────────────────────────
 async function enrichData(data, fields) {
     if (!data || !fields) return data;
     await ensureHeadersLoaded();
@@ -659,7 +659,7 @@ async function enrichData(data, fields) {
     _shouldStopEnrich = false;
     const totalStreams = data.length;
 
-    // Функция прерывания: сохраняем что есть и переводим в состояние паузы
+    // Interrupt function: save what we have and pause
     function stopAndRestore(step, done, total) {
         addLog(`Обогащение приостановлено на шаге: ${step}. Обработано: ${done}/${total}`);
         _isEnriching = false;
@@ -676,7 +676,7 @@ async function enrichData(data, fields) {
         setState(pausedState);
     }
 
-    // Соц. сети и Время (доп. поля)
+    // Social networks и Время (доп. поля)
     if (fields.social || fields.starttime || fields.duration) {
         const missing = data.filter(s => 
             ((fields.social && s.social === undefined) || ((fields.starttime || fields.duration) && s.createdAt === undefined)) && s._login
@@ -711,7 +711,7 @@ async function enrichData(data, fields) {
         return null;
     }
 
-    // Панели
+    // Panels
     if (fields.panels) {
         const missing = data.filter(s => s.panels === undefined && s._userId);
         const total = missing.length;
@@ -737,7 +737,7 @@ async function enrichData(data, fields) {
     return data;
 }
 
-// ─── Обработчик сообщений ─────────────────────────────────────────────────
+// ─── Message handler ─────────────────────────────────────────────────
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     if (message.action === 'start_collection') {
@@ -759,7 +759,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     if (message.action === 'stop_collection') {
         _shouldStop = true;
-        if (!_isRunning) setIdle(); // На случай если уже не работает
+        if (!_isRunning) setIdle(); // In case it already doesn't work
         sendResponse({ ok: true });
         return true;
     }
@@ -785,18 +785,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 );
 
                 if (needEnrich) {
-                    // Начинаем обогащение, но сам файл не скачиваем автоматически
+                    // Start enrichment, but don't download file automatically
                     res.scrapeMeta.timeFormat = tf;
                     chrome.storage.local.set({ scrapeMeta: res.scrapeMeta });
                     const enriched = await enrichData(data, fields);
                     if (enriched !== null) {
-                        // Обогащение завершилось до конца: сохраняем и показываем кнопку "Скачать файл"
+                        // Enrichment completed: save and show 'Download file' button
                         const doneState = { phase: 'done', collected: data.length, target: 0, error: null };
                         chrome.storage.local.set({ scrapingState: doneState, scrapedData: enriched });
                         setState(doneState);
                     }
                 } else {
-                    // Обогащение не требуется (уже пройдено или отменено) — скачиваем файл сразу
+                    // Enrichment not needed (already done or cancelled) — download immediately
                     const sortDir = message.sortDir || res.scrapeMeta.sortDir || 'desc';
                     downloadData(data, format, res.scrapeMeta.tabId, fields, sortDir, tf);
                 }
@@ -837,7 +837,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 const state = res.scrapingState || {};
                 const fields = state.enrichFields || { social: true, starttime: true, duration: true, panels: true };
 
-                // Заполняем необработанные поля null, чтобы они не обогащались и не попадали в файл
+                // Fill unprocessed fields with null so they don't get enriched or exported
                 data.forEach(s => {
                     if (fields.social && s.social === undefined) {
                         s.social = null;
@@ -866,7 +866,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         _shouldStopEnrich = true;
         _isEnriching = false;
 
-        // Восстанавливаем заголовки по умолчанию
+        // Restore default headers
         twitchHeaders = {
             "Client-Id": "kimne78kx3ncx6brgo4mv6wki5h1ko",
             "Content-Type": "application/json"
@@ -891,7 +891,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
 
     if (message.action === 'reset_state') {
-        // Очищаем сохранённые данные при сбросе
+        // Clear saved data on reset
         chrome.storage.local.remove(['scrapedData', 'scrapeMeta']);
         if (!_isRunning) setIdle();
         sendResponse({ ok: true });

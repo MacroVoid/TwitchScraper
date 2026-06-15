@@ -1,5 +1,5 @@
 // =============================================
-// popup.js — интерфейс, прогресс-бар, связь с background
+// popup.js — UI, progress bar, background communication
 // =============================================
 
 const TWITCH_LANGUAGES = [
@@ -40,7 +40,7 @@ const TWITCH_LANGUAGES = [
     { code: "OTHER", name: "Другой (OTHER)" }
 ];
 
-// ─── Элементы UI ───────────────────────────────────────────────────────────
+// ─── UI Elements ───────────────────────────────────────────────────────────
 const collectBtn = document.getElementById('collect_btn');
 const stopBtn = document.getElementById('stop_btn');
 const finishBtn = document.getElementById('finish_btn');
@@ -70,7 +70,7 @@ const cbDisableLogging = document.getElementById('cb_disable_logging');
 const clearLogsBtn = document.getElementById('clear_logs_btn');
 const debugBackBtn = document.getElementById('debug_back_btn');
 
-// Заполняем список языков удобными чекбоксами
+// Populate language list with convenient checkboxes
 TWITCH_LANGUAGES.forEach(lang => {
     const label = document.createElement('label');
     label.className = 'checkbox-label';
@@ -97,7 +97,7 @@ TWITCH_LANGUAGES.forEach(lang => {
     langList.appendChild(label);
 });
 
-// ─── Сохранение и загрузка настроек UI ────────────────────────────────────
+// ─── Save and load UI settings ────────────────────────────────────
 function saveUISettings() {
     const settings = {
         cb_channel: document.getElementById('cb_channel').checked,
@@ -182,19 +182,19 @@ document.querySelectorAll('input, select').forEach(el => {
     el.addEventListener('change', saveUISettings);
 });
 
-// ─── Восстановление состояния при открытии popup ───────────────────────────
+// ─── Restore state on popup open ───────────────────────────
 chrome.storage.local.get('scrapingState', ({ scrapingState }) => {
     if (scrapingState) applyState(scrapingState);
 });
 
-// Слушаем live-обновления от background
+// Listen for live updates from background
 chrome.runtime.onMessage.addListener((message) => {
     if (message.action === 'state_update') {
         applyState(message.state);
     }
 });
 
-// ─── Применяем состояние к UI ──────────────────────────────────────────────
+// ─── Apply state to UI ──────────────────────────────────────────────
 function applyState(state) {
     const { phase, collected, target, error } = state;
 
@@ -223,7 +223,7 @@ function applyState(state) {
         showPill('running', '⏳ Идёт сбор');
 
     } else if (phase === 'enriching') {
-        // Фаза обогащения: соц. сети / панели
+        // Enrichment phase: socials / panels
         showProgress(true);
         showActionButtons(false);
         doneButtons.style.display = 'none';
@@ -233,7 +233,7 @@ function applyState(state) {
         stopEnrichBtn.disabled = false;
         stopEnrichBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"/></svg> Стоп`;
 
-        const stepLabel = state.enrichStep === 'social' ? 'Соц. сети' : 'Панели';
+        const stepLabel = state.enrichStep === 'social' ? 'Social Networks' : 'Panels';
         const done = state.enrichDone || 0;
         const total = state.enrichTotal || 0;
 
@@ -254,7 +254,7 @@ function applyState(state) {
         showPill('running', `⏳ ${stepLabel}`);
 
     } else if (phase === 'enrich_paused') {
-        // Фаза обогащения приостановлена
+        // Enrichment phase paused
         showProgress(true);
         showActionButtons(false);
         doneButtons.style.display = 'none';
@@ -264,7 +264,7 @@ function applyState(state) {
         continueEnrichBtn.disabled = false;
         cancelEnrichBtn.disabled = false;
 
-        const stepLabel = state.enrichStep === 'social' ? 'Соц. сети' : 'Панели';
+        const stepLabel = state.enrichStep === 'social' ? 'Social Networks' : 'Panels';
         const done = state.enrichDone || 0;
         const total = state.enrichTotal || 0;
 
@@ -309,7 +309,7 @@ function applyState(state) {
         showPill('error', '✗ ' + (error || 'Ошибка'));
 
     } else {
-        // idle — полный сброс
+        // idle — full reset
         resetToIdle();
     }
 }
@@ -342,29 +342,29 @@ function resetToIdle() {
     statusPill.style.display = 'none';
 }
 
-// ─── Кнопка СТОП ──────────────────────────────────────────────────────────
+// ─── STOP Button ──────────────────────────────────────────────────────────
 stopBtn.addEventListener('click', () => {
-    // Блокируем кнопки сразу
+    // Block buttons immediately
     stopBtn.disabled = true;
     finishBtn.disabled = true;
     showPill('error', 'Останавливаем...');
     chrome.runtime.sendMessage({ action: 'stop_collection' }, () => {
-        // background вернёт state_update с phase:'idle'
+        // background will return state_update with phase:'idle'
     });
 });
 
-// ─── Кнопка СКАЧАТЬ СЕЙЧАС ────────────────────────────────────────────────
+// ─── DOWNLOAD NOW Button ────────────────────────────────────────────────
 finishBtn.addEventListener('click', () => {
     stopBtn.disabled = true;
     finishBtn.disabled = true;
     finishBtn.textContent = 'Завершаем...';
     showPill('running', '⬇️ Подготовка файла...');
     chrome.runtime.sendMessage({ action: 'finish_collection' }, () => {
-        // background передаст в content.js → content.js пришлёт collection_done
+        // background will pass to content.js → content.js will send collection_done
     });
 });
 
-// ─── Кнопка ЗАПУСКА ───────────────────────────────────────────────────────
+// ─── START Button ───────────────────────────────────────────────────────
 collectBtn.addEventListener('click', async () => {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
@@ -403,18 +403,18 @@ collectBtn.addEventListener('click', async () => {
         sortDir: document.querySelector('input[name="sort_dir"]:checked').value
     };
 
-    // Сбрасываем кнопки управления перед стартом
+    // Reset control buttons before start
     stopBtn.disabled = false;
     finishBtn.disabled = false;
-    finishBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Скачать сейчас`;
+    finishBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Download now`;
 
-    // Применяем начальное состояние
+    // Apply initial state
     applyState({ phase: 'running', collected: 0, target: options.maxStreams, error: null });
 
     chrome.runtime.sendMessage({ action: 'start_collection', tabId: tab.id, options });
 });
 
-// ─── Кнопка СТОП ОБОГАЩЕНИЯ ─────────────────────────────────
+// ─── STOP ENRICHMENT Button ─────────────────────────────────
 stopEnrichBtn.addEventListener('click', () => {
     stopEnrichBtn.disabled = true;
     stopEnrichBtn.innerHTML = 'Приостановка...';
@@ -422,25 +422,25 @@ stopEnrichBtn.addEventListener('click', () => {
     chrome.runtime.sendMessage({ action: 'stop_enrich' });
 });
 
-// ─── Кнопка ПРОДОЛЖИТЬ ОБОГАЩЕНИЕ ───────────────────────────
+// ─── CONTINUE ENRICHMENT Button ───────────────────────────
 continueEnrichBtn.addEventListener('click', () => {
     continueEnrichBtn.disabled = true;
     showPill('running', '⏳ Продолжаем сбор...');
     chrome.runtime.sendMessage({ action: 'resume_enrich' });
 });
 
-// ─── Кнопка ОТМЕНИТЬ ОБОГАЩЕНИЕ ─────────────────────────────
+// ─── CANCEL ENRICHMENT Button ─────────────────────────────
 cancelEnrichBtn.addEventListener('click', () => {
     cancelEnrichBtn.disabled = true;
     showPill('running', '💾 Завершаем без доп. данных...');
     chrome.runtime.sendMessage({ action: 'cancel_enrich' });
 });
 
-// ─── Кнопки ФИНАЛА (Скачать и Сбросить) ───────────────────────────────────
+// ─── FINAL Buttons (Download and Reset) ───────────────────────────────────
 downloadBtn.addEventListener('click', () => {
     const currentFormat = document.querySelector('input[name="format"]:checked').value;
     const currentSort = document.querySelector('input[name="sort_dir"]:checked').value;
-    // Собираем текущее состояние чекбоксов для фильтрации полей при скачивании
+    // Collect current checkbox state for field filtering on download
     const currentFields = {
         title: document.getElementById('cb_title').checked,
         channel: document.getElementById('cb_channel').checked,
@@ -467,7 +467,7 @@ resetBtn.addEventListener('click', () => {
     chrome.runtime.sendMessage({ action: 'reset_state' });
 });
 
-// ─── Кнопка СБРОСА НАСТРОЕК ПО УМОЛЧАНИЮ ──────────────────────────────────
+// ─── RESET SETTINGS Button ──────────────────────────────────
 defaultSettingsBtn.addEventListener('click', () => {
     document.getElementById('cb_channel').checked = true;
     document.getElementById('cb_category').checked = true;
@@ -479,9 +479,9 @@ defaultSettingsBtn.addEventListener('click', () => {
     document.getElementById('cb_url').checked = true;
     document.getElementById('cb_desc').checked = true;
     document.getElementById('cb_social').checked = true;
-    document.getElementById('cb_panels').checked = false; // медленный запрос
-    document.getElementById('cb_starttime').checked = false; // не включен по умолчанию
-    document.getElementById('cb_duration').checked = false; // не включен по умолчанию
+    document.getElementById('cb_panels').checked = false; // slow request
+    document.getElementById('cb_starttime').checked = false; // not enabled by default
+    document.getElementById('cb_duration').checked = false; // not enabled by default
     document.getElementById('cb_subonly').checked = false;
     document.getElementById('format_starttime').value = 'iso';
     document.getElementById('format_duration').value = 'hms';
@@ -553,7 +553,7 @@ downloadLogsBtn.addEventListener('click', () => {
     });
 });
 
-// ─── Обработчики панели отладки ──────────────────────────────────────────
+// ─── Debug panel handlers ──────────────────────────────────────────
 debugToggleBtn.addEventListener('click', () => {
     const isShowingDebug = debugView.style.display === 'block';
     if (isShowingDebug) {

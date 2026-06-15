@@ -1,9 +1,9 @@
 // =============================================
-// Content Script — минимальная версия
-// Нужен только для инжекта скачивания файла.
-// Все GQL-запросы теперь делает background.js.
+// Content Script — minimal version
+// Needed only for file download injection.
+// All GQL requests are now handled by background.js.
 // =============================================
 
-// Content script больше не делает fetch-запросы.
-// Всё управление через background.js.
-// Этот файл оставлен для совместимости (инжект скачивания делается через scripting API).
+// Content script no longer makes fetch requests.
+// All management is via background.js.
+// This file is left for compatibility (download injection via scripting API).

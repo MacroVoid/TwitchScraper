@@ -32,6 +32,8 @@ const I18N = {
         "cb_desc": " Описание",
         "cb_social": " Соц. сети",
         "cb_panels": " Панели",
+        "cb_starttime": " Время начала",
+        "cb_duration": " Продолжительность",
         // Filters
         "cb_subonly": " Включать приватные (Sub-Only)",
         // Sort
@@ -42,6 +44,15 @@ const I18N = {
         "export_json": " JSON",
         "export_md": " Markdown",
         "btn_reset_ui": "Сбросить настройки интерфейса",
+        "lbl_starttime": "Формат времени начала",
+        "lbl_duration": "Формат продолжительности",
+        "opt_iso": "ISO 8601",
+        "opt_unix": "Unixtime",
+        "opt_gmt": "GMT 0",
+        "opt_local12": "Местное время (12 часов)",
+        "opt_local24": "Местное время (24 часа)",
+        "opt_hms": "Часы:Минуты:Секунды (02:15:30)",
+        "opt_sec": "Только секунды (8130s)",
         // Main Actions
         "btn_collect": "Собрать и скачать",
         "btn_stop": "Стоп",
@@ -75,6 +86,12 @@ const I18N = {
         // Misc texts
         "txt_social": "Соц. сети",
         "txt_panels": "Панели",
+        "progress_running_sub_unlimited": "Собрано {0} стримов...",
+        "progress_running_sub_limited": "{0}% — {1} из {2} стримов",
+        "progress_enrich_sub": "{0}% — {1} из {2} каналов",
+        "btn_finishing": "Завершаем...",
+        "btn_pausing": "Приостановка...",
+        "btn_stopping": "Останавливаем...",
         "alert_reset": "Вы уверены, что хотите полностью сбросить расширение? Это очистит кэш, настройки и текущий прогресс.",
         "alert_empty_logs": "Логи пока пусты."
     },
@@ -111,6 +128,8 @@ const I18N = {
         "cb_desc": " Description",
         "cb_social": " Social Links",
         "cb_panels": " Panels",
+        "cb_starttime": " Start Time",
+        "cb_duration": " Duration",
         // Filters
         "cb_subonly": " Include Sub-Only Streams",
         // Sort
@@ -121,6 +140,15 @@ const I18N = {
         "export_json": " JSON",
         "export_md": " Markdown",
         "btn_reset_ui": "Reset UI Settings",
+        "lbl_starttime": "Start Time Format",
+        "lbl_duration": "Duration Format",
+        "opt_iso": "ISO 8601",
+        "opt_unix": "Unixtime",
+        "opt_gmt": "GMT 0",
+        "opt_local12": "Local (12 hours)",
+        "opt_local24": "Local (24 hours)",
+        "opt_hms": "Hours:Minutes:Seconds (02:15:30)",
+        "opt_sec": "Total seconds (8130s)",
         // Main Actions
         "btn_collect": "Collect and Download",
         "btn_stop": "Stop",
@@ -154,6 +182,12 @@ const I18N = {
         // Misc texts
         "txt_social": "Socials",
         "txt_panels": "Panels",
+        "progress_running_sub_unlimited": "Collected {0} streams...",
+        "progress_running_sub_limited": "{0}% — {1} of {2} streams",
+        "progress_enrich_sub": "{0}% — {1} of {2} channels",
+        "btn_finishing": "Finishing...",
+        "btn_pausing": "Pausing...",
+        "btn_stopping": "Stopping...",
         "alert_reset": "Are you sure you want to completely reset the extension? This will clear cache, settings, and current progress.",
         "alert_empty_logs": "Logs are currently empty."
     }

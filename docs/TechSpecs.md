@@ -130,25 +130,25 @@ Used to retrieve the list of live streams.
 }
 ```
 
-### 5.2 Social media (`GetChannelSocial`)
+### 5.2 Channel extra data (`GetChannelExtras`)
 
-Social media data is not available in the directory query, so the extension uses GraphQL batching — multiple query objects in a single POST array.
+Social media links and stream start times (uptime) are not available in the main directory query, so the extension uses GraphQL batching to request them dynamically.
 
 **Request (batch):**
 ```json
 [
   {
-    "query": "query GetChannelSocial($login: String!) { user(login: $login) { login channel { socialMedias { name title url } } } }",
+    "query": "query GetChannelExtras($login: String!) { user(login: $login) { login stream { createdAt } channel { socialMedias { name title url } } } }",
     "variables": { "login": "streamer_login_1" }
   },
   {
-    "query": "query GetChannelSocial($login: String!) { user(login: $login) { login channel { socialMedias { name title url } } } }",
+    "query": "query GetChannelExtras($login: String!) { user(login: $login) { login stream { createdAt } channel { socialMedias { name title url } } } }",
     "variables": { "login": "streamer_login_2" }
   }
 ]
 ```
 
-**Response:** Array of responses. Social media fields are in `data.user.channel.socialMedias`.
+**Response:** Array of responses containing the stream start timestamp (`createdAt`) and social media links.
 
 ```json
 [
@@ -156,6 +156,9 @@ Social media data is not available in the directory query, so the extension uses
     "data": {
       "user": {
         "login": "streamer_login_1",
+        "stream": {
+          "createdAt": "2026-06-15T08:15:30Z"
+        },
         "channel": {
           "socialMedias": [
             { "name": "youtube", "title": "YouTube", "url": "https://youtube.com/..." },

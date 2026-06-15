@@ -509,20 +509,70 @@
 
     /* ===== ИДЕАЛЬНОЕ ЦЕНТРИРОВАНИЕ INPUT NUMBER ===== */
     input[type="number"]::-webkit-inner-spin-button,
+
     input[type="number"]::-webkit-outer-spin-button {
       -webkit-appearance: none;
       margin: 0;
     }
+
+    /* ===== LANGUAGE MENU ===== */
+    .lang-dropdown {
+      position: absolute;
+      top: calc(100% + 8px);
+      left: 0;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+      z-index: 100;
+      display: none;
+      flex-direction: column;
+      gap: 2px;
+      padding: 6px;
+      min-width: 140px;
+    }
+    .lang-dropdown.show {
+      display: flex;
+    }
+    .lang-option {
+      padding: 8px 12px;
+      cursor: pointer;
+      font-size: 13px;
+      color: var(--text);
+      border-radius: 5px;
+      transition: background 0.2s, color 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .lang-option:hover {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--primary-hover);
+    }
+    .lang-option.active {
+      background: rgba(145, 70, 255, 0.15);
+      color: var(--primary-hover);
+      font-weight: 600;
+    }
   </style>
+
 </head>
 
 <body>
-  <div class="header">
+    <div class="header">
     <div style="display: flex; align-items: center; gap: 10px;">
-      <div class="header-icon">📡</div>
-      <h2>Twitch Scraper</h2>
+      <div style="position: relative;">
+        <button id="ui_lang_btn" class="header-btn" title="Language">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-languages-icon lucide-languages"><path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/></svg>
+        </button>
+        <div id="ui_lang_menu" class="lang-dropdown">
+          <div class="lang-option" data-lang="ru">🇷🇺 Русский</div>
+          <div class="lang-option" data-lang="en">🇬🇧 English</div>
+        </div>
+      </div>
+      <h2 data-i18n="app_title">Twitch Scraper</h2>
     </div>
-    <button id="debug_toggle_btn" class="header-btn" title="Панель отладки">
+    <button id="debug_toggle_btn" class="header-btn" data-i18n-title="btn_debug_title" title="Панель отладки">
       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
         class="lucide lucide-bug-icon lucide-bug">
@@ -547,70 +597,70 @@
     <!-- PROGRESS (hidden if inactive) -->
     <div id="progress-section">
       <div class="progress-header">
-        <span class="progress-label" id="progress-label">Collecting data...</span>
+        <span class="progress-label" id="progress-label" data-i18n="progress_gathering">Collecting data...</span>
         <span class="progress-count" id="progress-count">0</span>
       </div>
       <div class="progress-bar-wrap">
         <div class="progress-bar-fill indeterminate" id="progress-bar"></div>
       </div>
-      <div class="progress-sub" id="progress-sub">Initializing...</div>
+      <div class="progress-sub" id="progress-sub" data-i18n="progress_init">Initializing...</div>
     </div>
 
     <!-- FIELDS TO COLLECT -->
     <div class="section" id="fields-section">
-      <div class="section-title">Data to collect</div>
+      <div class="section-title" data-i18n="sec_fields">Data to collect</div>
       <div class="grid-options">
-        <label class="checkbox-label"><input type="checkbox" id="cb_channel" checked> Channel</label>
-        <label class="checkbox-label"><input type="checkbox" id="cb_category" checked> Category</label>
-        <label class="checkbox-label"><input type="checkbox" id="cb_tags" checked> Tags</label>
-        <label class="checkbox-label"><input type="checkbox" id="cb_viewers" checked> Viewers</label>
-        <label class="checkbox-label"><input type="checkbox" id="cb_followers" checked> Followers</label>
-        <label class="checkbox-label"><input type="checkbox" id="cb_title" checked> Title</label>
-        <label class="checkbox-label"><input type="checkbox" id="cb_language" checked> Language</label>
-        <label class="checkbox-label"><input type="checkbox" id="cb_url" checked> URL</label>
-        <label class="checkbox-label"><input type="checkbox" id="cb_desc" checked> Description</label>
-        <label class="checkbox-label"><input type="checkbox" id="cb_social" checked> Social Networks</label>
-        <label class="checkbox-label"><input type="checkbox" id="cb_panels"> Panels</label>
-        <label class="checkbox-label"><input type="checkbox" id="cb_starttime"> Start Time</label>
-        <label class="checkbox-label"><input type="checkbox" id="cb_duration"> Duration</label>
+        <label class="checkbox-label"><input type="checkbox" id="cb_channel" checked> <span data-i18n="cb_channel">Channel</span></label>
+        <label class="checkbox-label"><input type="checkbox" id="cb_category" checked> <span data-i18n="cb_category">Category</span></label>
+        <label class="checkbox-label"><input type="checkbox" id="cb_tags" checked> <span data-i18n="cb_tags">Tags</span></label>
+        <label class="checkbox-label"><input type="checkbox" id="cb_viewers" checked> <span data-i18n="cb_viewers">Viewers</span></label>
+        <label class="checkbox-label"><input type="checkbox" id="cb_followers" checked> <span data-i18n="cb_followers">Followers</span></label>
+        <label class="checkbox-label"><input type="checkbox" id="cb_title" checked> <span data-i18n="cb_title">Title</span></label>
+        <label class="checkbox-label"><input type="checkbox" id="cb_language" checked> <span data-i18n="cb_language">Language</span></label>
+        <label class="checkbox-label"><input type="checkbox" id="cb_url" checked> <span data-i18n="cb_url">URL</span></label>
+        <label class="checkbox-label"><input type="checkbox" id="cb_desc" checked> <span data-i18n="cb_desc">Description</span></label>
+        <label class="checkbox-label"><input type="checkbox" id="cb_social" checked> <span data-i18n="cb_social">Social Networks</span></label>
+        <label class="checkbox-label"><input type="checkbox" id="cb_panels"> <span data-i18n="cb_panels">Panels</span></label>
+        <label class="checkbox-label"><input type="checkbox" id="cb_starttime"> <span data-i18n="cb_starttime">Start Time</span></label>
+        <label class="checkbox-label"><input type="checkbox" id="cb_duration"> <span data-i18n="cb_duration">Duration</span></label>
       </div>
     </div>
 
     <!-- FILTER -->
     <div class="section" id="filter-section">
-      <div class="section-title">Filters</div>
+      <div class="section-title" data-i18n="sec_filters">Filters</div>
       <div class="lang-select-container">
         <div class="lang-list" id="lang_list"></div>
       </div>
       <label class="checkbox-label" style="margin-top: 8px;">
-        <input type="checkbox" id="cb_subonly"> Include Private (Sub-Only)
+        <input type="checkbox" id="cb_subonly"> <span data-i18n="cb_subonly">Include Private (Sub-Only)</span>
       </label>
     </div>
 
     <!-- FORMATTING -->
     <div class="section" id="format-section">
-      <div class="section-title">Time and Duration Format</div>
+      <div class="section-title" data-i18n="sec_format">Time and Duration Format</div>
       <div style="margin-bottom: 10px;">
-        <label style="display: block; font-size: 13px; color: var(--text-muted); margin-bottom: 4px;">Start Time</label>
+        <label style="display: block; font-size: 13px; color: var(--text-muted); margin-bottom: 4px;" data-i18n="lbl_starttime">Start Time</label>
         <select id="format_starttime">
-          <option value="iso" selected>ISO 8601 (рекомендуется)</option>
-          <option value="unix">Unixtime</option>
-          <option value="gmt">GMT 0</option>
-          <option value="local12">Local (12 hours)</option>
-          <option value="local24">Local (24 hours)</option>
+          <option value="iso" selected data-i18n="opt_iso">ISO 8601</option>
+          <option value="unix" data-i18n="opt_unix">Unixtime</option>
+          <option value="gmt" data-i18n="opt_gmt">GMT 0</option>
+          <option value="local12" data-i18n="opt_local12">Local (12 hours)</option>
+          <option value="local24" data-i18n="opt_local24">Local (24 hours)</option>
         </select>
       </div>
       <div>
-        <label style="display: block; font-size: 13px; color: var(--text-muted); margin-bottom: 4px;">Duration</label>
+        <label style="display: block; font-size: 13px; color: var(--text-muted); margin-bottom: 4px;" data-i18n="lbl_duration">Duration</label>
         <select id="format_duration">
-          <option value="hms" selected>Hours:Minutes:Seconds (02:15:30)</option>
-          <option value="sec">Total seconds (8130s)</option>
+          <option value="hms" selected data-i18n="opt_hms">Hours:Minutes:Seconds (02:15:30)</option>
+          <option value="sec" data-i18n="opt_sec">Total seconds (8130s)</option>
         </select>
       </div>
     </div>
 
     <div class="section" id="sort-section">
-      <div class="section-title">Sort by viewers</div>
+      <div class="section-title" data-i18n="sec_sort">Sort by viewers</div>
       <div class="radio-group">
         <label class="radio-label">
           <input type="radio" name="sort_dir" value="desc" checked>
@@ -622,7 +672,7 @@
             <path d="M11 8h7" />
             <path d="M11 12h4" />
           </svg>
-          Descending
+          <span data-i18n="sort_desc">Descending</span>
         </label>
         <label class="radio-label">
           <input type="radio" name="sort_dir" value="asc">
@@ -634,25 +684,25 @@
             <path d="M11 8h7" />
             <path d="M11 12h10" />
           </svg>
-          Ascending
+          <span data-i18n="sort_asc">Ascending</span>
         </label>
       </div>
     </div>
 
     <div class="section" id="settings-section">
-      <div class="section-title">Настройки экспорта</div>
+      <div class="section-title" data-i18n="sec_export">Настройки экспорта</div>
       <div class="two-col" style="margin-bottom: 12px;">
-        <label for="max_streams">Лимит (0 - без лимита):</label>
+        <label for="max_streams" data-i18n="export_limit">Лимит (0 - без лимита):</label>
         <input type="number" id="max_streams" value="0" min="0" max="100000">
       </div>
       <div class="radio-group" style="margin-bottom: 12px;">
-        <label class="radio-label"><input type="radio" name="format" value="json" checked> JSON</label>
-        <label class="radio-label"><input type="radio" name="format" value="md"> Markdown</label>
+        <label class="radio-label"><input type="radio" name="format" value="json" checked> <span data-i18n="export_json">JSON</span></label>
+        <label class="radio-label"><input type="radio" name="format" value="md"> <span data-i18n="export_md">Markdown</span></label>
       </div>
 
       <button id="default_settings_btn" class="btn-secondary"
         style="margin-top: 4px; padding: 6px; font-size: 11px; opacity: 0.8; width: 100%;">
-        Reset settings интерфейса
+        <span data-i18n="btn_reset_ui">Reset settings интерфейса</span>
       </button>
     </div>
 
@@ -663,7 +713,7 @@
         <polyline points="7 10 12 15 17 10" />
         <line x1="12" y1="15" x2="12" y2="3" />
       </svg>
-      Собрать и скачать
+      <span data-i18n="btn_collect">Собрать и скачать</span>
     </button>
 
     <!-- Control buttons (visible only during collection) -->
@@ -672,7 +722,7 @@
         <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
           <rect x="4" y="4" width="16" height="16" rx="2" />
         </svg>
-        Стоп
+        <span data-i18n="btn_stop">Стоп</span>
       </button>
       <button id="finish_btn" class="btn-finish">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
@@ -681,7 +731,7 @@
           <polyline points="7 10 12 15 17 10" />
           <line x1="12" y1="15" x2="12" y2="3" />
         </svg>
-        Завершить
+        <span data-i18n="btn_finish">Завершить</span>
       </button>
     </div>
 
@@ -693,10 +743,10 @@
           <polyline points="7 10 12 15 17 10" />
           <line x1="12" y1="15" x2="12" y2="3" />
         </svg>
-        Скачать файл
+        <span data-i18n="btn_download_file">Скачать файл</span>
       </button>
       <button id="reset_btn" class="btn-secondary">
-        Сбросить и начать заново
+        <span data-i18n="btn_reset_full">Сбросить и начать заново</span>
       </button>
     </div>
 
@@ -706,7 +756,7 @@
         <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
           <rect x="4" y="4" width="16" height="16" rx="2" />
         </svg>
-        Стоп
+        <span data-i18n="btn_stop">Стоп</span>
       </button>
     </div>
 
@@ -715,14 +765,14 @@
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
           <polygon points="5 3 19 12 5 21 5 3" />
         </svg>
-        Продолжить
+        <span data-i18n="btn_continue">Продолжить</span>
       </button>
       <button id="cancel_enrich_btn" class="btn-stop" style="flex: 1; padding: 11px; font-size: 13px;">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
           <line x1="18" y1="6" x2="6" y2="18" />
           <line x1="6" y1="6" x2="18" y2="18" />
         </svg>
-        Отменить
+        <span data-i18n="btn_cancel">Отменить</span>
       </button>
     </div>
 
@@ -736,10 +786,10 @@
   <!-- DEBUG VIEW -->
   <div class="container" id="debug-view" style="display: none;">
     <div class="section">
-      <div class="section-title">Панель отладки</div>
+      <div class="section-title" data-i18n="sec_debug">Панель отладки</div>
 
       <label class="checkbox-label" style="margin-bottom: 12px; display: flex; align-items: center; width: 100%;">
-        <input type="checkbox" id="cb_disable_logging"> Отключить ведение логов
+        <input type="checkbox" id="cb_disable_logging"> <span data-i18n="cb_disable_log">Отключить ведение логов</span>
       </label>
 
       <button id="download_logs_btn" class="btn-collect"
@@ -750,7 +800,7 @@
           <polyline points="7 10 12 15 17 10" />
           <line x1="12" y1="15" x2="12" y2="3" />
         </svg>
-        Скачать дебаг-логи
+        <span data-i18n="btn_dl_logs">Скачать дебаг-логи</span>
       </button>
 
       <button id="clear_logs_btn" class="btn-secondary"
@@ -761,7 +811,7 @@
           <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
           <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
         </svg>
-        Очистить логи
+        <span data-i18n="btn_clear_logs">Очистить логи</span>
       </button>
 
       <button id="full_reset_btn" class="btn-secondary"
@@ -771,16 +821,17 @@
           <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
           <path d="M3 3v5h5" />
         </svg>
-        Full reset (Emergency)
+        <span data-i18n="btn_emergency_reset">Full reset (Emergency)</span>
       </button>
     </div>
 
     <button id="debug_back_btn" class="btn-secondary"
       style="width: 100%; margin-top: 10px; padding: 10px; font-size: 13px;">
-      Назад
+      <span data-i18n="btn_back">Назад</span>
     </button>
   </div>
 
+  <script src="i18n.js"></script>
   <script src="popup.js"></script>
 </body>
 

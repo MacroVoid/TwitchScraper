@@ -1,3 +1,71 @@
+
+// --- Localization System (i18n) ---
+let currentLang = localStorage.getItem('appLang') || 'ru';
+
+/**
+ * Translates a given key based on the current language.
+ * @param {string} key - The key from I18N dictionary.
+ * @returns {string} The translated string.
+ */
+function t(key) {
+    let text = I18N[currentLang]?.[key] || I18N['en']?.[key] || key;
+    return text;
+}
+
+/**
+ * Applies translations to all HTML elements with the 'data-i18n' attribute.
+ * Also handles 'data-i18n-title' for element titles (tooltips).
+ */
+function applyTranslations() {
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        el.innerHTML = t(key);
+    });
+
+    document.querySelectorAll('[data-i18n-title]').forEach(el => {
+        const key = el.getAttribute('data-i18n-title');
+        el.title = t(key);
+    });
+}
+
+// Setup language dropdown menu
+const langBtn = document.getElementById('ui_lang_btn');
+const langMenu = document.getElementById('ui_lang_menu');
+
+langBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    langMenu.classList.toggle('show');
+});
+
+document.addEventListener('click', () => {
+    langMenu.classList.remove('show');
+});
+
+document.querySelectorAll('.lang-option').forEach(opt => {
+    if (opt.getAttribute('data-lang') === currentLang) {
+        opt.classList.add('active');
+    }
+
+    opt.addEventListener('click', (e) => {
+        const selectedLang = e.currentTarget.getAttribute('data-lang');
+        localStorage.setItem('appLang', selectedLang);
+        currentLang = selectedLang;
+        
+        document.querySelectorAll('.lang-option').forEach(o => o.classList.remove('active'));
+        e.currentTarget.classList.add('active');
+        
+        applyTranslations();
+        
+        // Re-render complex buttons with icons
+        collectBtn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> ${t('btn_collect')}`;
+        finishBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> ${t('btn_finish')}`;
+        downloadBtn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> ${t('btn_download_file')}`;
+    });
+});
+
+// Apply translations on startup
+applyTranslations();
+
 // =============================================
 // popup.js — UI, progress bar, background communication
 // =============================================
@@ -220,7 +288,7 @@ function applyState(state) {
             progressBar.style.width = '100%';
             progressSub.textContent = `Собрано ${(collected || 0).toLocaleString('ru-RU')} стримов...`;
         }
-        showPill('running', '⏳ Идёт сбор');
+        showPill('running', t('pill_running'));
 
     } else if (phase === 'enriching') {
         // Enrichment phase: socials / panels
@@ -251,7 +319,7 @@ function applyState(state) {
             progressBar.style.width = '100%';
             progressSub.textContent = 'Подготовка...';
         }
-        showPill('running', `⏳ ${stepLabel}`);
+        showPill('running', t('pill_enriching').replace('{0}', stepLabel));
 
     } else if (phase === 'enrich_paused') {
         // Enrichment phase paused
@@ -268,7 +336,7 @@ function applyState(state) {
         const done = state.enrichDone || 0;
         const total = state.enrichTotal || 0;
 
-        progressLabel.textContent = `Сбор: ${stepLabel} (Приостановлен)`;
+        progressLabel.textContent = t('progress_paused').replace('{0}', stepLabel);
         progressCount.textContent = `${done.toLocaleString('ru-RU')} / ${total.toLocaleString('ru-RU')}`;
 
         if (total > 0) {
@@ -282,7 +350,7 @@ function applyState(state) {
             progressBar.style.width = '100%';
             progressSub.textContent = 'Приостановлено';
         }
-        showPill('warning', `⏸ Приостановлено`);
+        showPill('warning', t('pill_paused'));
 
     } else if (phase === 'done') {
         showProgress(true);
@@ -291,13 +359,13 @@ function applyState(state) {
         enrichRunningButtons.style.display = 'none';
         enrichPausedButtons.style.display = 'none';
         collectBtn.style.display = 'none';
-        progressLabel.textContent = 'Сбор завершён!';
+        progressLabel.textContent = t('progress_done');
         progressCount.textContent = (collected || 0).toLocaleString('ru-RU');
         progressBar.classList.remove('indeterminate');
         progressBar.classList.add('done');
         progressBar.style.width = '100%';
-        progressSub.textContent = `✅ Скачано ${(collected || 0).toLocaleString('ru-RU')} стримов`;
-        showPill('done', `✓ ${(collected || 0).toLocaleString('ru-RU')} стримов сохранено`);
+        progressSub.textContent = t('progress_saved').replace('{0}', (collected || 0).toLocaleString(currentLang));
+        showPill('done', t('pill_done').replace('{0}', (collected || 0).toLocaleString(currentLang)));
 
     } else if (phase === 'error') {
         showProgress(false);
@@ -347,7 +415,7 @@ stopBtn.addEventListener('click', () => {
     // Block buttons immediately
     stopBtn.disabled = true;
     finishBtn.disabled = true;
-    showPill('error', 'Останавливаем...');
+    showPill('error', t('pill_stopping'));
     chrome.runtime.sendMessage({ action: 'stop_collection' }, () => {
         // background will return state_update with phase:'idle'
     });
@@ -358,7 +426,7 @@ finishBtn.addEventListener('click', () => {
     stopBtn.disabled = true;
     finishBtn.disabled = true;
     finishBtn.textContent = 'Завершаем...';
-    showPill('running', '⬇️ Подготовка файла...');
+    showPill('running', t('pill_preparing'));
     chrome.runtime.sendMessage({ action: 'finish_collection' }, () => {
         // background will pass to content.js → content.js will send collection_done
     });
@@ -369,7 +437,7 @@ collectBtn.addEventListener('click', async () => {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
     if (!tab || !tab.url?.includes('twitch.tv/directory/category/')) {
-        showPill('error', '✗ Откройте страницу категории Twitch');
+        showPill('error', t('pill_error_open_twitch'));
         setTimeout(() => { statusPill.style.display = 'none'; }, 3000);
         return;
     }
@@ -418,21 +486,21 @@ collectBtn.addEventListener('click', async () => {
 stopEnrichBtn.addEventListener('click', () => {
     stopEnrichBtn.disabled = true;
     stopEnrichBtn.innerHTML = 'Приостановка...';
-    showPill('running', '⏸ Приостанавливаем...');
+    showPill('running', t('pill_pausing'));
     chrome.runtime.sendMessage({ action: 'stop_enrich' });
 });
 
 // ─── CONTINUE ENRICHMENT Button ───────────────────────────
 continueEnrichBtn.addEventListener('click', () => {
     continueEnrichBtn.disabled = true;
-    showPill('running', '⏳ Продолжаем сбор...');
+    showPill('running', t('pill_continuing'));
     chrome.runtime.sendMessage({ action: 'resume_enrich' });
 });
 
 // ─── CANCEL ENRICHMENT Button ─────────────────────────────
 cancelEnrichBtn.addEventListener('click', () => {
     cancelEnrichBtn.disabled = true;
-    showPill('running', '💾 Завершаем без доп. данных...');
+    showPill('running', t('pill_canceling'));
     chrome.runtime.sendMessage({ action: 'cancel_enrich' });
 });
 
@@ -500,7 +568,7 @@ defaultSettingsBtn.addEventListener('click', () => {
 });
 
 fullResetBtn.addEventListener('click', () => {
-    if (confirm('Вы уверены, что хотите полностью сбросить расширение? Это очистит кэш, настройки и текущий прогресс.')) {
+    if (confirm(t('alert_reset'))) {
         chrome.runtime.sendMessage({ action: 'full_reset' }, () => {
             resetToIdle();
             document.getElementById('cb_channel').checked = true;
@@ -527,7 +595,7 @@ fullResetBtn.addEventListener('click', () => {
             if (descRadio) descRadio.checked = true;
 
             saveUISettings();
-            showPill('done', '✓ Сброшено');
+            showPill('done', t('pill_reset_done'));
             setTimeout(() => { statusPill.style.display = 'none'; }, 3000);
         });
     }
@@ -537,7 +605,7 @@ downloadLogsBtn.addEventListener('click', () => {
     chrome.storage.local.get('debugLogs', (res) => {
         const logs = res.debugLogs || [];
         if (logs.length === 0) {
-            alert('Логи пока пусты.');
+            alert(t('alert_empty_logs'));
             return;
         }
         const text = logs.join('\n');
@@ -580,7 +648,7 @@ cbDisableLogging.addEventListener('change', () => {
 clearLogsBtn.addEventListener('click', () => {
     chrome.runtime.sendMessage({ action: 'clear_logs' }, (res) => {
         if (res && res.ok) {
-            showPill('done', '✓ Логи очищены');
+            showPill('done', t('pill_logs_cleared'));
             setTimeout(() => { statusPill.style.display = 'none'; }, 2000);
         }
     });

@@ -32,6 +32,8 @@ const I18N = {
         "cb_desc": " Описание",
         "cb_social": " Соц. сети",
         "cb_panels": " Панели",
+        "cb_starttime": " Время начала",
+        "cb_duration": " Продолжительность",
         // Filters
         "cb_subonly": " Включать приватные (Sub-Only)",
         // Sort
@@ -42,6 +44,15 @@ const I18N = {
         "export_json": " JSON",
         "export_md": " Markdown",
         "btn_reset_ui": "Сбросить настройки интерфейса",
+        "lbl_starttime": "Формат времени начала",
+        "lbl_duration": "Формат продолжительности",
+        "opt_iso": "ISO 8601",
+        "opt_unix": "Unixtime",
+        "opt_gmt": "GMT 0",
+        "opt_local12": "Местное время (12 часов)",
+        "opt_local24": "Местное время (24 часа)",
+        "opt_hms": "Часы:Минуты:Секунды (02:15:30)",
+        "opt_sec": "Только секунды (8130s)",
         // Main Actions
         "btn_collect": "Собрать и скачать",
         "btn_stop": "Стоп",
@@ -111,6 +122,8 @@ const I18N = {
         "cb_desc": " Description",
         "cb_social": " Social Links",
         "cb_panels": " Panels",
+        "cb_starttime": " Start Time",
+        "cb_duration": " Duration",
         // Filters
         "cb_subonly": " Include Sub-Only Streams",
         // Sort
@@ -121,6 +134,15 @@ const I18N = {
         "export_json": " JSON",
         "export_md": " Markdown",
         "btn_reset_ui": "Reset UI Settings",
+        "lbl_starttime": "Start Time Format",
+        "lbl_duration": "Duration Format",
+        "opt_iso": "ISO 8601",
+        "opt_unix": "Unixtime",
+        "opt_gmt": "GMT 0",
+        "opt_local12": "Local (12 hours)",
+        "opt_local24": "Local (24 hours)",
+        "opt_hms": "Hours:Minutes:Seconds (02:15:30)",
+        "opt_sec": "Total seconds (8130s)",
         // Main Actions
         "btn_collect": "Collect and Download",
         "btn_stop": "Stop",

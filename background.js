@@ -302,8 +302,8 @@ function triggerDownload(data, format, filename, fields, sortDir, timeFormat) {
         switch (tf.start) {
             case 'unix': return Math.floor(d.getTime() / 1000).toString();
             case 'gmt': return d.toUTCString();
-            case 'local12': return d.toLocaleString();
-            case 'local24': return d.toLocaleString('ru-RU');
+            case 'local12': return d.toLocaleString(undefined, { hour12: true });
+            case 'local24': return d.toLocaleString(undefined, { hour12: false });
             case 'iso':
             default: return isoString;
         }

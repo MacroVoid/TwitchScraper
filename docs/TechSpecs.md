@@ -198,13 +198,14 @@ Uses Twitch's built-in `operationName` and `persistedQuery` hash instead of send
 
 ---
 
-## 6. Data Enrichment (Social Media and Panels)
+## 6. Data Enrichment (Social Media, Panels, and Uptime)
 
-Data regarding social networks and channel panels is unavailable in the primary directory query. They must be collected via separate requests. This can be time-consuming, so an advanced batching and state management system is implemented.
+Data regarding social networks, channel panels, and exact stream uptime is unavailable or incomplete in the primary directory query. They must be collected via separate requests. This can be time-consuming, so an advanced batching and state management system is implemented.
 
 ### 6.1 Batch Requests
 - **Socials**: Extracted via `GetChannelSocial`. Twitch allows combining queries. The extension gathers streamer logins in batches of **30** and makes one massive POST request.
 - **Panels**: Extracted via `ChannelPanels` using `userId`. Panels carry heavy payloads, so they are batched by **20**. Panels are sanitized of empty elements; only `title`, `linkURL`, `description`, and `altText` are retained.
+- **Uptime (Start Time & Duration)**: Stream metadata (`createdAt`) is fetched via additional GQL queries. This provides precise start times and enables accurate calculation of stream duration.
 
 ### 6.2 Process Management (Pause, Resume, Cancel)
 - The `enrichData()` function is divided into manageable steps.
@@ -250,7 +251,7 @@ In Manifest V3, transmitting massive data arrays (thousands of streams with long
 Instead, via the `chrome.scripting.executeScript` API, it forwards the raw array as an argument into the `triggerDownload` function, which executes within the context of the open Twitch tab. The browser readily allocates memory for the webpage, where the function locally generates the `Blob` and triggers the download via an invisible `<a>` tag.
 
 ### 8.2 JSON Format
-The data array passes through a filter. If the user disabled the `Social` checkbox, or if they were not collected (remained `null` after cancellation), the `social` and `panels` keys are omitted from the JSON objects.
+The data array passes through a filter. If the user disabled the `Social` checkbox, or if they were not collected (remained `null` after cancellation), the `social` and `panels` keys are omitted from the JSON objects. Additionally, advanced time formatting preferences (e.g., ISO, Unix, GMT, local time, HH:MM:SS) are strictly applied to the exported start time and duration values.
 
 ### 8.3 Markdown Format
 The script generates beautiful, highly readable Markdown.

@@ -10,8 +10,9 @@
 
 - **One-Click Export**: Quickly scrape thousands of live streams from any game or directory.
 - **Bypass Limitations**: Automatically handles Twitch's pagination and safely gathers data using your active session.
-- **Rich Data Enrichment**: Gather not just stream titles and viewers, but also deep information like social media links and channel panels (rules, discord links, about me, etc).
+- **Rich Data Enrichment**: Gather not just stream titles and viewers, but also deep information like social media links, channel panels (rules, discord links, about me, etc), and stream uptime (start time and duration).
 - **Format Options**: Export cleanly formatted JSON files for programmatic use, or beautiful Markdown files for easy reading.
+- **Advanced Export Settings**: Customize how stream start time and duration are formatted (ISO 8601, Unix Timestamp, GMT, Local Time 12/24h, HH:MM:SS or Total Seconds) directly from the interface.
 - **Multilingual Support**: The extension interface supports English and Russian languages out of the box.
 
 ## 🚀 How to Use

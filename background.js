@@ -543,7 +543,7 @@ function triggerDownload(data, format, filename, fields, sortDir, timeFormat, la
             } else {
                 str = String(value);
             }
-            if (/[",\n\r]/.test(str)) {
+            if (/[";,\n\r]/.test(str)) {
                 return '"' + str.replace(/"/g, '""') + '"';
             }
             return str;
@@ -565,9 +565,9 @@ function triggerDownload(data, format, filename, fields, sortDir, timeFormat, la
         if (f.description) addCol(labels.description, s => s.description || '');
         if (f.social)      addCol(labels.social,   s => s.social || []);
 
-        const lines = [headerCells.map(csvEscape).join(',')];
+        const lines = [headerCells.map(csvEscape).join(';')];
         data.forEach(s => {
-            lines.push(rowGetters.map(g => csvEscape(g(s))).join(','));
+            lines.push(rowGetters.map(g => csvEscape(g(s))).join(';'));
         });
         content = '\uFEFF' + lines.join('\r\n'); // BOM for Excel UTF-8
         mimeType = 'text/csv';

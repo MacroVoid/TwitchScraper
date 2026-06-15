@@ -7,9 +7,13 @@ A browser extension (Manifest V3) for collecting live stream data from any categ
 ## Features
 
 - Collects stream data from any Twitch category with automatic pagination handling
-- Exports not just basic fields (title, viewer count), but extended data as well: social media links, channel panels (rules, Discord, about sections), stream start time and duration
-- Output to JSON for programmatic use or to Markdown for human-readable results
+- Advanced data collection parameters: social media links, channel panels (rules, Discord, description), stream timestamps, and duration metrics
+- Output to **JSON**, **Markdown**, or **CSV** for programmatic use, human-readable results, or spreadsheet analysis
 - Flexible time format options: ISO 8601, Unix Timestamp, GMT, local time (12/24h), HH:MM:SS or total seconds
+- **Minimum viewers filter** — skip streams below a chosen threshold
+- **Post-collection summary** — total streams, total/average viewers, and a top-3 channels breakdown
+- **Copy to clipboard** — quickly copy the collected JSON without downloading a file
+- **Crash Recovery Mechanism** — automatic detection of interrupted data collection sessions (e.g., due to Service Worker termination), allowing state reset or immediate export of intermediate results
 - Interface available in English and Russian
 
 ## Usage

@@ -70,7 +70,7 @@ Twitch has a known database issue:
 
 ### 4.4 Loop detection and rate limiting
 
-The collection loop includes a 150ms delay between pages. If Twitch stalls and returns the same `cursor` and last stream `id` across several consecutive pages, the extension detects the infinite loop and aborts.
+The collection loop includes a 150ms delay between pages. If Twitch stalls and returns the same `cursor` and last stream `id` across several consecutive pages, the extension detects the infinite loop and aborts. To handle temporary server errors (e.g., 502 Bad Gateway), an Exponential Backoff mechanism is implemented: upon encountering an error, the delay before the next retry is doubled (800ms → 1600ms → 3200ms), preventing Rate Limit blocks.
 
 ### 4.5 Sub-only streams
 
@@ -224,6 +224,7 @@ Social media links, channel panels, and stream uptime are either unavailable or 
 
 - **Socials & Uptime:** Fetched together via `GetChannelExtras` in batches of **30** logins per POST request. Each response includes both the social media links and the stream start timestamp (`createdAt`), which is used to calculate duration.
 - **Panels:** Fetched via `ChannelPanels` in batches of **20** by channel `userId`. Panel data is filtered to retain only `title`, `linkURL`, `description`, and `altText`; empty entries are discarded.
+- **Concurrency Limit:** To accelerate data retrieval, batch requests are executed concurrently using a `pLimit` abstraction. The maximum number of simultaneous HTTP requests is strictly limited (default 4 threads), ensuring high processing speed while adhering to Twitch API rate limits.
 
 ### 6.2 Pause, resume, and cancel
 
@@ -240,7 +241,14 @@ Social media links, channel panels, and stream uptime are either unavailable or 
 
 The UI is fully reactive and persistent. Any change to checkboxes, language selections, or format options triggers `saveUISettings()`, which writes the current configuration to `chrome.storage.local`. On next open, `loadUISettings()` restores all settings immediately.
 
-### 7.2 Phase management
+### 7.2 Crash Recovery and Heartbeat
+
+The Manifest V3 specification imposes strict limits on background processes: the browser may forcibly terminate a Service Worker after 30 seconds of inactivity or 5 minutes of execution. To prevent data loss:
+1. During data collection, `background.js` periodically (every 5 seconds) updates a `heartbeatAt` timestamp in `chrome.storage.local`.
+2. When the UI (`popup.js`) is opened, it checks the validity of this timestamp.
+3. If the process was terminated by the system (the collection was interrupted), the UI transitions into a Recovery State, prompting the user to save the intermediate results or reset the state cleanly.
+
+### 7.3 Phase management
 
 `popup.js` is driven by a reactive state machine. The Service Worker broadcasts `state_update` messages containing a state object:
 
@@ -302,7 +310,7 @@ Once the content is assembled, a `Blob` is created, a temporary `ObjectURL` is g
 
 ### 9.1 Log buffer
 
-`background.js` includes an `addLog()` function for diagnostics. Log entries (with timestamps) are appended to the `_logsBuffer` array, which is capped at 500 entries — older entries are dropped as new ones arrive. The buffer is persisted in `chrome.storage.local`.
+`background.js` includes an `addLog()` function for diagnostics. Log entries (with timestamps) are appended to the `_logsBuffer` array, which is capped at 500 entries. To prevent exceeding browser system quotas (`MAX_WRITE_OPERATIONS_PER_MINUTE`), writing the buffer to `chrome.storage.local` is managed via a debounce algorithm. Multiple logging calls are grouped and flushed to disk as a single batch.
 
 Logged events include: HTTP response statuses, captured headers, pagination cursors, and GQL parameters.
 

@@ -19,6 +19,7 @@ const I18N = {
         "sec_filters": "Фильтры",
         "sec_sort": "Сортировка по зрителям",
         "sec_export": "Настройки экспорта",
+        "sec_format": "Формат времени и продолжительности",
         "sec_debug": "Панель отладки",
         // Fields
         "cb_channel": " Канал",
@@ -36,6 +37,7 @@ const I18N = {
         "cb_duration": " Продолжительность",
         // Filters
         "cb_subonly": " Включать приватные (Sub-Only)",
+        "filter_min_viewers": "Минимум зрителей:",
         // Sort
         "sort_desc": " По убыванию",
         "sort_asc": " По возрастанию",
@@ -43,6 +45,7 @@ const I18N = {
         "export_limit": "Лимит (0 - без лимита):",
         "export_json": " JSON",
         "export_md": " Markdown",
+        "export_csv": " CSV",
         "btn_reset_ui": "Сбросить настройки интерфейса",
         "lbl_starttime": "Формат времени начала",
         "lbl_duration": "Формат продолжительности",
@@ -60,6 +63,8 @@ const I18N = {
         "btn_download_now": "Скачать сейчас",
         "btn_download_file": "Скачать файл",
         "btn_reset_full": "Сбросить и начать заново",
+        "btn_copy": "Копировать JSON",
+        "btn_copying": "Копируем...",
         // Enrich Actions
         "btn_continue": "Продолжить",
         "btn_cancel": "Отменить",
@@ -83,6 +88,16 @@ const I18N = {
         "pill_canceling": "💾 Завершаем без доп. данных...",
         "pill_logs_cleared": "✓ Логи очищены",
         "pill_reset_done": "✓ Сброшено",
+        "pill_copied": "✓ Скопировано в буфер обмена",
+        "pill_copy_failed": "✗ Не удалось скопировать",
+        "pill_interrupted": "⚠ Сбор прерван",
+        // Recovery (A3)
+        "recovery_message": "Сбор был прерван (вероятно, перезапуск фоновой службы). Собрано {0} стримов. Скачайте имеющиеся данные или сбросьте состояние.",
+        // Statistics (C4)
+        "stats_total": "Всего стримов",
+        "stats_total_viewers": "Всего зрителей",
+        "stats_avg_viewers": "Средние зрители",
+        "stats_top": "Топ-3 канала",
         // Misc texts
         "txt_social": "Соц. сети",
         "txt_panels": "Панели",
@@ -115,6 +130,7 @@ const I18N = {
         "sec_filters": "Filters",
         "sec_sort": "Sort by Viewers",
         "sec_export": "Export Settings",
+        "sec_format": "Time and Duration Format",
         "sec_debug": "Debug Panel",
         // Fields
         "cb_channel": " Channel",
@@ -132,6 +148,7 @@ const I18N = {
         "cb_duration": " Duration",
         // Filters
         "cb_subonly": " Include Sub-Only Streams",
+        "filter_min_viewers": "Min viewers:",
         // Sort
         "sort_desc": " Descending",
         "sort_asc": " Ascending",
@@ -139,6 +156,7 @@ const I18N = {
         "export_limit": "Limit (0 - unlimited):",
         "export_json": " JSON",
         "export_md": " Markdown",
+        "export_csv": " CSV",
         "btn_reset_ui": "Reset UI Settings",
         "lbl_starttime": "Start Time Format",
         "lbl_duration": "Duration Format",
@@ -156,6 +174,8 @@ const I18N = {
         "btn_download_now": "Download Now",
         "btn_download_file": "Download File",
         "btn_reset_full": "Reset and Start Over",
+        "btn_copy": "Copy JSON",
+        "btn_copying": "Copying...",
         // Enrich Actions
         "btn_continue": "Continue",
         "btn_cancel": "Cancel",
@@ -179,6 +199,16 @@ const I18N = {
         "pill_canceling": "💾 Finishing without extra data...",
         "pill_logs_cleared": "✓ Logs Cleared",
         "pill_reset_done": "✓ Reset Done",
+        "pill_copied": "✓ Copied to clipboard",
+        "pill_copy_failed": "✗ Copy failed",
+        "pill_interrupted": "⚠ Collection interrupted",
+        // Recovery (A3)
+        "recovery_message": "Collection was interrupted (likely a background service restart). {0} streams collected. Download what you have or reset the state.",
+        // Statistics (C4)
+        "stats_total": "Total streams",
+        "stats_total_viewers": "Total viewers",
+        "stats_avg_viewers": "Average viewers",
+        "stats_top": "Top 3 channels",
         // Misc texts
         "txt_social": "Socials",
         "txt_panels": "Panels",
